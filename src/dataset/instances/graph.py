@@ -21,6 +21,7 @@ class GraphInstance(DataInstance):
 
         num_nodes = self.data.shape[0]
         num_edges = np.count_nonzero(self.data)
+        # if len(self.edge_features) != num_edges: print("graph.py: ", len(self.edge_features), num_edges)
         assert len(self.node_features) == num_nodes
         assert len(self.edge_features) == num_edges
         assert len(self.edge_weights) == num_edges
@@ -58,7 +59,7 @@ class GraphInstance(DataInstance):
     def get_nx(self):
         if not self._nx_repr:
             self._nx_repr = self._build_nx()
-        return deepcopy(self._nx_repr)
+        return deepcopy(self._nx_repr) # gives the adjacency matrix
     
     def __init_node_features(self, node_features):
         return np.zeros((self.data.shape[0], 1)) if isinstance(node_features, (str, type(None))) else node_features

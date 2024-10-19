@@ -39,10 +39,29 @@ class OracleTorch(TorchBase, Oracle):
 
     def _real_predict(self, data_instance):
         return torch.argmax(self._real_predict_proba(data_instance)).item()
+    
+    def _real_predict_gradients(self, data_instance):
+        '''We added this since we needed gradients to compute how the perturbation on P influences Loss'''
+        # print(f"type torch.py ln41: {type(data_instance.data)}")
+        # print(self._real_predict_proba(data_instance))
+        return self._real_predict_proba_gradients(data_instance)
 
     @torch.no_grad()
     def _real_predict_proba(self, data_inst):
+        # print(f"type torch.py ln46: {type(data_inst.data)}")
+        # instance_data_np = np.array(data_inst.data) if isinstance(data_inst.data, memoryview) else data_inst.data
         data_inst = TorchGeometricDataset.to_geometric(data_inst)
+        node_features = data_inst.x.to(self.device)
+        edge_index = data_inst.edge_index.to(self.device)
+        edge_weights = data_inst.edge_attr.to(self.device)
+        
+        return self.model(node_features,edge_index,edge_weights, None).cpu().squeeze()
+    
+    # @torch.no_grad() # We need gradients even at inference
+    def _real_predict_proba_gradients(self, data_inst):
+        # print(f"type torch.py ln46: {type(data_inst.data)}")
+        # instance_data_np = np.array(data_inst.data) if isinstance(data_inst.data, memoryview) else data_inst.data
+        data_inst = TorchGeometricDataset.to_geometric_gradients(data_inst)
         node_features = data_inst.x.to(self.device)
         edge_index = data_inst.edge_index.to(self.device)
         edge_weights = data_inst.edge_attr.to(self.device)
