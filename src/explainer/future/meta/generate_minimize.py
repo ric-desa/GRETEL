@@ -6,7 +6,7 @@ import src.utils.explanations.functions as exp_tools
 from src.future.explanation.local.graph_counterfactual import LocalGraphCounterfactualExplanation
 
 
-class GenerateMinimizeExplainer(Explainer, Trainable):
+class GenerateMinimize(Explainer):
     """This meta-explainer uses an explanation method to generate a first counterfactual and
     then a minimizer function to reduce the distance between the counterfactual and the original
     instance"""
@@ -42,32 +42,27 @@ class GenerateMinimizeExplainer(Explainer, Trainable):
         
         self.explanation_minimizer = get_instance_kvargs(self.local_config['parameters']['minimizer']['class'], 
                                                           {'context':self.context,'local_config': self.local_config['parameters']['minimizer']})
-        
-
-    def real_fit(self):
-        # Chose if the components will be trained at creation time or in this fit
-        pass
 
 
     def explain(self, instance):
 
         # Using the generator to obtain an initial explanation
         initial_explanation = self.explanation_generator.explain(instance)
-        initial_cf  = initial_explanation.counterfactual_instances[0]
+        # initial_cf  = initial_explanation.counterfactual_instances[0]
 
-        # Getting the predicted label of the initial explanation
-        initial_cf_label = self.oracle.predict(initial_cf)
+        # # Getting the predicted label of the initial explanation
+        # initial_cf_label = self.oracle.predict(initial_cf)
 
-        if initial_cf == instance.label:
-            # the generator was not able to produce a counterfactual
-            # so we can inmediately return, there is no point in minimizing
-            self.logger.info(f'The generator could not generate a counterfactual for instance with id {str(instance.id)}')
-            return initial_explanation
-        else:
-            self.logger.info(f'The generator generated a counterfactual for instance with id {str(instance.id)}')
+        # if initial_cf == instance.label:
+        #     # the generator was not able to produce a counterfactual
+        #     # so we can inmediately return, there is no point in minimizing
+        #     self.logger.info(f'The generator could not generate a counterfactual for instance with id {str(instance.id)}')
+        #     return initial_explanation
+        # else:
+        #     self.logger.info(f'The generator generated a counterfactual for instance with id {str(instance.id)}')
         
         # Try to minimize the distance between the counterfactual example and the original instance
-        minimum_cf = self.explanation_minimizer.minimize(instance, initial_cf)
+        minimum_cf = self.explanation_minimizer.minimize(initial_explanation)
 
         minimal_explanation = LocalGraphCounterfactualExplanation(context=self.context,
                                                                     dataset=self.dataset,
@@ -79,8 +74,10 @@ class GenerateMinimizeExplainer(Explainer, Trainable):
         return minimal_explanation
     
 
-    def write(self):
-        pass
-
-    def read(self):
-        pass
+    @property
+    def name(self):
+        # Make the name of the generator_minimizer explainer show the names of the used generator and minimizer
+        gen = get_class( self.local_config['parameters']['generator']['class'] ).__name__
+        min = get_class( self.local_config['parameters']['minimizer']['class'] ).__name__
+        alias = f'GenerateMinimize({gen}-{min})'
+        return self.context.get_name(self,alias=alias)
