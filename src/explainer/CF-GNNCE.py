@@ -20,7 +20,7 @@ class CFGNNCExplainer(Explainer):
         
         local_params = self.local_config['parameters']
         self.α = local_params['alpha'] # α: Learning Rate
-        self.K = local_params['K'] # K: Number of Iterations (to update P_hat)
+        self.K = local_params['K'] # K: Number of Iterations (to update pertubation matrices (P_hat, etc.))
         self.β = local_params['beta'] # β: Trade-off between Lpred and Ldist Eq.1 [4]
         self.γ = local_params['gamma'] # γ: Add missing edges to the adjacency matrix (γ ∈ [0, 1])
 
@@ -40,6 +40,10 @@ class CFGNNCExplainer(Explainer):
         self.A_v = torch.ones(instance.data.shape, dtype=torch.float64) # Assume full adjacency matrix and use Ldist to find best CF
         missing_edges = np.where(instance.data == 0) # Missing A_v edges
 
+        self.node_features = torch.ones(instance.node_features.shape, dtype=torch.float64)
+        missing_nodefeatures = np.where(instance.node_features == 0) # Missing node_features edges
+        # print(missing_edges)
+        # print(instance.node_features)
 
         # self.A_v = instance.data # instance.data is the adjacency matrix
         # print(self.A_v) # Debugging
@@ -70,6 +74,13 @@ class CFGNNCExplainer(Explainer):
         self.P_hat = torch.ones_like(self.A_v, requires_grad=False) # Initialization of P_hat
         self.P_hat[missing_edges] = self.γ # Adjacency matrix is full of ones and P stores the zero edges (i.e. inverting the roles of A_v and P)
         self.P_hat.requires_grad_(True)
+        # print(self.P_hat, instance.data)
+        # print(torch.equal(self.P_hat, torch.tensor(instance.data))) # Debugging: with γ != 0 → False
+
+        self.P_node_hat = torch.tensor(instance.node_features, requires_grad=False) # Initialization of P_node_hat: Perturbation matrix for Node Features
+        # self.P_node_hat[missing_nodefeatures] = self.γ
+        self.P_node_hat.requires_grad_(True)
+        # print(self.P_node_hat, self.node_features)
 
         self.v_bar_opt = (self.A_v, self.x) # Initializing optimal CF with the instance itself
         self.opt_flag = False
@@ -77,15 +88,28 @@ class CFGNNCExplainer(Explainer):
         self.edge_weights_opt = instance.data[edge_indices] # real array
 
         for _ in range(int(self.K)):
-            # print(f"Iteration: {k}")
+            # print(f"Iteration: {_}")
             
             v_bar, valid_CF = self.__get_CF_example(instance)
 
             #print("Calculating loss")
             loss = self.__calculate_loss(v_bar, instance, valid_CF)
+            # print("Ldist:", L_dist, self.β, L_pred)
+            # print(self.N_v_bar_copy.grad, self.A_v_bar_copy.grad)
+            # print(f"loss: {total_loss}")
+            # print(self.N_v_bar.requires_grad, self.A_v_bar.requires_grad)
+            # print(torch.autograd.grad(loss, self.N_v_bar_copy, retain_graph=True))
+            # print(torch.autograd.grad(loss, self.A_v_bar_copy, retain_graph=True))
+            # print(self.A_v.dtype, self.A_v_bar.dtype)
+            # print(self.node_features.dtype, self.N_v_bar.dtype)
+            # print(loss.grad_fn)  # Should display the final operation of the graph
 
             # Backpropagate the loss and compute gradient of P_hat
             loss.backward(retain_graph=True) # Retaining graph to sum future backward gradients
+            
+            # Manually retrieve and store gradients
+            self.N_v_bar.grad = torch.autograd.grad(loss, self.N_v_bar, retain_graph=True)[0]; # print("N_v_bar.grad:", self.N_v_bar_grad)
+            self.A_v_bar.grad = torch.autograd.grad(loss, self.A_v_bar, retain_graph=True)[0]; # print("A_v_bar.grad:", self.A_v_bar_grad)
 
             # print(self.g_v_logits.grad)
             # print(f"self.A_v_bar.shape: {self.A_v_bar.shape}")
@@ -109,6 +133,7 @@ class CFGNNCExplainer(Explainer):
             # If gradients were with zeroes but they are non-sparse
             '''
             # print(f"self.edge_indices.shape: {self.edge_indices[0].shape}")
+            # print(f"self.node_indices.shape: {self.node_indices[0].shape}")
 
             '''print(f"self.A_v_bar: {self.A_v_bar}")
             print(f"self.A_v_bar.requires_grad: {self.A_v_bar.requires_grad}")
@@ -124,22 +149,32 @@ class CFGNNCExplainer(Explainer):
                 exit()'''
             if not valid_CF: # L_pred contributing to Total Loss
                 # self.A_v_bar.grad = torch.rand(self.A_v_bar.shape, dtype=torch.double) * 1e-1 # (Incorrect!) Initialize A_v_bar gradients randomically
-                self.A_v_bar.grad = torch.zeros_like(self.A_v_bar, dtype=torch.double) # Initialize A_v_bar gradients with zeroes
+                self.A_v_bar.grad += torch.zeros_like(self.A_v_bar, dtype=torch.double) # Initialize A_v_bar gradients with zeroes
                 # torch.set_printoptions(threshold=10_000)
                 # print(self.A_v_bar.grad)
-                self.A_v_bar.grad[self.edge_indices] = self.w.grad # Assign gradients from self.w.grad to the positions specified in self.edge_indices, i.e. they are the non-zero and contributing edges to the classification
+                # print(f"self.A_v_bar.grad.shape: {self.A_v_bar.grad.shape}")
+                self.A_v_bar.grad[self.edge_indices] += self.w.grad # Adding gradients from self.w.grad to the positions specified in self.edge_indices, i.e. they are the non-zero and contributing edges to the classification
+                # Adding L_pred contribution to the L_dist
                 
+                self.N_v_bar.grad += torch.zeros_like(self.N_v_bar, dtype=torch.double)
+                # print(f"self.N_v_bar.grad.shape: {self.N_v_bar.grad.shape}")
+                # print(f"self.x.grad.shape: {self.x.grad.shape}")             
+                self.N_v_bar.grad += self.x.grad.clone() # Adding L_pred contribution to the L_dist
+
                 # torch.set_printoptions(threshold=10_000)
                 # print("self.A_v_bar.grad", self.A_v_bar.grad)
                 
-                self.A_v_bar.backward(torch.ones_like(self.A_v_bar)) # Perform backward pass
+            self.A_v_bar.backward(torch.ones_like(self.A_v_bar)) # Perform backward pass
+            self.N_v_bar.backward(torch.ones_like(self.N_v_bar))
 
             with torch.no_grad():  # Update without tracking the gradients further
                 # print(f"Gradient of P_hat: {self.P_hat.grad}")  # Debugging to check gradients
                 self.P_hat -= self.α * self.P_hat.grad  # Gradient step with learning rate
+                self.P_node_hat -= self.α * self.P_node_hat
                 # print(f"self.P_hat.grad: {self.P_hat.grad}")
                     
             self.P_hat.grad.zero_()
+            self.P_node_hat.grad.zero_()
 
             '''print(k)
             if k == 3: exit()
@@ -161,6 +196,8 @@ class CFGNNCExplainer(Explainer):
         # print(f"edge_weights.shape: {edge_weights.size}")
         # print(self.edge_weights_opt.dtype)
 
+        # Passing the CF node features
+        node_features = self.N_v_bar.clone().detach().numpy()
         
         try:
             edge_features = instance.edge_features[edge_indices]
@@ -175,7 +212,7 @@ class CFGNNCExplainer(Explainer):
                 id = instance.id,
                 label = "Optimal CF",
                 data = self.v_bar_opt[0].clone().detach().numpy(),
-                node_features = instance.node_features,
+                node_features = node_features,
                 edge_features = edge_features,
                 edge_weights = edge_weights,
                 # edge_weights= self.edge_weights_opt
@@ -186,7 +223,7 @@ class CFGNNCExplainer(Explainer):
                 id = instance.id,
                 label = "Optimal CF",
                 data = self.v_bar_opt[0].clone().detach().numpy(),
-                node_features = instance.node_features,
+                node_features = node_features,
                 # edge_features = edge_features,
                 edge_weights = edge_weights,
                 # edge_weights= self.edge_weights_opt
@@ -207,6 +244,7 @@ class CFGNNCExplainer(Explainer):
 
         self.A_v_bar = P * self.A_v
         self.A_v_bar.fill_diagonal_(1) # Add self-loop Eq(4) [5.2]
+        # self.A_v_bar_copy = torch.tensor(self.A_v_bar.data, requires_grad=True)
 
         v_bar_cand = (self.A_v_bar, self.x)
         # print("v_bar_cand", v_bar_cand) # Debugging
@@ -230,13 +268,21 @@ class CFGNNCExplainer(Explainer):
         edge_features_np = instance.edge_features.clone().detach().numpy()
         edge_features_np = edge_features.clone().detach().numpy(); ''' # print(type(edge_features_np))  # Should be <class 'numpy.ndarray'> 
 
-        self.edge_indices = torch.where(self.A_v_bar != 0)   # integer tensor
+        self.edge_indices = torch.where(self.A_v_bar != 0) # integer tensor
         # print(f"edge_indices.shape: {self.edge_indices}")
 
         edge_weights = self.A_v_bar[self.edge_indices] # real tensor
         edge_weights_np = edge_weights.clone().detach().numpy()
 
-        try:
+        '''P_node_sigmoid = torch.sigmoid(self.P_node_hat) # Repeating for P_node_hat
+        mask_node = (P_node_sigmoid >= .5).float().clone()
+        P_node = P_node_sigmoid + (mask_node - P_node_sigmoid).detach()
+        use P_node instead of self.P_node_hat'''
+        self.N_v_bar = self.P_node_hat * self.node_features
+        # self.N_v_bar_copy = torch.tensor(self.N_v_bar.data, requires_grad=True)
+        N_v_bar_np = self.N_v_bar.clone().detach().numpy()
+
+        '''try:
             edge_features = instance.edge_features[self.edge_indices]
 
             A_v_bar_GI = GraphInstance(
@@ -249,9 +295,9 @@ class CFGNNCExplainer(Explainer):
             graph_features = instance.graph_features
             )
         except:
-            '''print(instance.data.shape, self.A_v_bar.shape)
-            print(instance.edge_features.shape, edge_weights_np.shape)
-            print(max(self.edge_indices[0]), max(self.edge_indices[1]))'''
+            # print(instance.data.shape, self.A_v_bar.shape)
+            # print(instance.edge_features.shape, edge_weights_np.shape)
+            # print(max(self.edge_indices[0]), max(self.edge_indices[1]))
             A_v_bar_GI = GraphInstance(
             id=instance.id,
             label="CF",
@@ -260,7 +306,7 @@ class CFGNNCExplainer(Explainer):
             # edge_features = edge_features,
             edge_weights = edge_weights_np,
             graph_features = instance.graph_features
-            )
+            )'''
 
 
         # if (edge_weights_np.size != edge_features.size): print(edge_weights_np.size, edge_features.size)
@@ -279,7 +325,7 @@ class CFGNNCExplainer(Explainer):
             id=instance.id,
             label="CF",
             data = A_v_bar_np,
-            node_features = instance.node_features,
+            node_features = N_v_bar_np, # instance.node_features,
             # edge_features = edge_features,
             edge_weights = edge_weights_np,
             graph_features = instance.graph_features
@@ -415,8 +461,13 @@ class CFGNNCExplainer(Explainer):
         # 2. Distance loss: L_dist
         # Compute the number of edges removed (element-wise difference between A_v and A_v_bar)
         edge_diff = torch.abs(self.A_v - self.A_v_bar)
+        node_diff = torch.abs(self.node_features - self.N_v_bar)
         # edge_diff = torch.abs(self.A_v - v_bar[0]) # Trying for debugging but not correct
-        L_dist = edge_diff.sum() # Count the number of edges changed
+        D_edges = edge_diff.sum() # Count the number of edges changed
+        D_nodes = node_diff.sum() # Distance between the nodes changed
+        L_dist = D_edges + D_nodes
+        # print(f"edge_diff.sum(): {edge_diff.sum()}")
+        # print(f"node_diff.sum(): {node_diff.sum()}")
         
         # 3. Total loss
         total_loss = L_pred + self.β * L_dist
