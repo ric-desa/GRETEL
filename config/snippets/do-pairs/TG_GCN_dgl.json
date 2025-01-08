@@ -1,5 +1,5 @@
 {
-    "dataset" : {"compose_gcn" : "config/snippets/datasets/TG.jsonc"},
+    "dataset" : {"compose_gcn" : "config/snippets/datasets/TG_dgl.jsonc"},
       "oracle": {
         "class": "src.oracle.nn.torch.OracleTorch",
         "parameters": {

@@ -4,7 +4,7 @@
         "parameters" : {
             "lock_release_tout":120,
             "propagate":[
-                {"in_sections" : ["explainers"],"params" : {"fold_id": 4, "retrain":false}},
+                {"in_sections" : ["explainers"],"params" : {"fold_id": 1, "retrain":false}},
                 {"in_sections" : ["do-pairs/oracle"],"params" : {"fold_id": -1, "retrain":false}},
                 {"in_sections": ["do-pairs/dataset"],"params": { "compose_man" : "config/snippets/datasets/centr_and_weights.json" }}
             ]
@@ -48,7 +48,7 @@
             }
         }
     ],
-    "explainers": [{"class": "src.explainer.CF-GNNCE.CFGNNCExplainer",
+    "explainers": [{"class": "src.explainer.CF-GNNE.CFGNNExplainer_Ext",
     "parameters": {"alpha": 0.1, "K": 500, "beta": 0, "gamma": 0.001}}]
     // α: Learning Rate, K: Number of iterations, β: Loss controll (Ldist wrt Lpred) (Eq.1 [4])
     // α: 0.1, K: 500, β: 0.5 // Paper best parameters (Hyperparameter Search [6.4])
