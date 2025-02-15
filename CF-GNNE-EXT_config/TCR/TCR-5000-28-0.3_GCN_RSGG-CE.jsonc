@@ -1,6 +1,6 @@
 {  
     "experiment" : {
-        "scope": "TCR EXT FEAT",
+        "scope": "TCR RSGG-CE",
         "parameters" : {
             "lock_release_tout":120,
             "propagate":[
@@ -11,8 +11,24 @@
         }
     },
     "do-pairs":[{"compose_tcr_gcn" : "config/snippets/do-pairs/TCR-5000-28-0.3_GCN.json"} ],
-    "explainers": [{"class": "src.explainer.CF-GNNE.CFGNNExplainer_Ext",
-    "parameters": {"alpha": 0.1, "K": 500, "beta": 0.5, "extended": true, "gamma_edge": 0, "change_node_feat": true, "gamma_node_feat": 0, "visualize": false}}],
+    "explainers": [{
+        "class": "src.explainer.generative.rsgg.RSGG",
+        "parameters": {
+          "epochs": 10,
+          "models": [
+            {
+                "class": "src.explainer.generative.gans.graph.model.GAN",
+                "parameters": {
+                    "batch_size": 1,
+                    "discriminator": {
+                        "class": "src.explainer.generative.gans.graph.discriminators.TopKPoolingDiscriminator",
+                        "parameters": {}
+                    }
+                }
+            }
+        ]
+        }
+      }],
     "compose_mes" : "config/snippets/default_metrics.json",
     "compose_strs" : "config/snippets/default_store_paths.json"
 }

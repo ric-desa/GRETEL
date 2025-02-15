@@ -18,6 +18,10 @@ class CFGNNExplainer_Ext(Explainer):
     '''
     
     def init(self):
+        """
+        α: Learning Rate, K: Number of iterations, β: Loss controll (Ldist wrt Lpred) (Eq.1 [4]), γ_edges: Missing edges addition fraction (per edge)
+        α: 0.1, K: 500, β: 0.5 // Paper best parameters (Hyperparameter Search [6.4])
+        """
         self.oracle = retake_oracle(self.local_config)
         
         local_params = self.local_config['parameters']
@@ -33,6 +37,7 @@ class CFGNNExplainer_Ext(Explainer):
 
         # self.loss_fn = torch.nn.BCELoss()
         self.loss_fn = torch.nn.NLLLoss()
+        # self.loss_fn = torch.nn.CrossEntropyLoss()
         
         assert ((isinstance(self.K, float) or isinstance(self.K, int)) and self.K >= 1)
         assert ((isinstance(self.α, float) or isinstance(self.α, int)) and self.α > 0)
@@ -101,7 +106,7 @@ class CFGNNExplainer_Ext(Explainer):
             self.P_hat.requires_grad_(True) # Enable backpropagation
             if self.debugging: print(f"P_hat == instance.data: {torch.equal(self.P_hat, torch.tensor(instance.data))}") # Debugging: γ_edges != 0 ←→ it prints False
 
-            if not self.change_node_feat: # Enable only discarding or adding of node features
+            if not self.change_node_feat: # Enable only discarding or adding of node features (node feature gating)
                 self.P_node_hat = torch.ones(instance.node_features.shape, requires_grad=True) # Initialization of P_node_hat: Perturbation Matrix for Node Features
             else: # Allow node features to change features
                 # self.P_node_hat = torch.tensor(instance.node_features, requires_grad=False) # Initialization Ⅰ of P_node_hat: Perturbation Matrix for Node Features. Init as node_features.
@@ -135,7 +140,6 @@ class CFGNNExplainer_Ext(Explainer):
 
             if not self.valid_CF: # L_pred contributing to Total Loss
                 self.A_v_bar.grad += torch.zeros_like(self.A_v_bar, dtype=torch.double) # Initialize A_v_bar gradients with zeroes
-
                 # Adding gradients from self.w.grad to the positions specified in self.edge_indices, i.e. they are the non-zero and contributing edges to the classification
                 self.A_v_bar.grad[self.edge_indices] += self.w.grad 
                 
@@ -165,7 +169,7 @@ class CFGNNExplainer_Ext(Explainer):
             # input(node_feat_difference)
             # input(self.x)
 
-            if self.visualize and False:
+            if self.visualize:
                 instance_graph = nx.from_numpy_array(instance.data)
                 CF_graph = nx.from_numpy_array(self.A_v_bar.clone().detach().numpy())
 
@@ -351,7 +355,7 @@ class CFGNNExplainer_Ext(Explainer):
         """
         # 1. Prediction loss: L_pred
         # Get the original prediction and counterfactual prediction
-        self.g_v_probabilities = F.softmax(self.g_v_logits, dim=0) # Prediction probabilities required for the loss
+        self.g_v_probabilities = F.log_softmax(self.g_v_logits, dim=0) # Prediction log probabilities required for NLL loss
         f_v_probabilities = torch.nn.functional.one_hot(self.f_v, num_classes=2).long() # One-hot encoding of the class required for the loss
 
         # If f(v) == f(v_bar), the loss is 0; otherwise, compute NLL loss
@@ -386,7 +390,8 @@ class CFGNNExplainer_Ext(Explainer):
         l2norm = torch.norm(v-CF, p=2) # L2-norm of the difference
         return l2norm
 
-class Color: # Print nice console colors for readibility' sake
+class Color:
+    """Print nice console colors for readibility' sake"""
     BLACK = '\033[30m'
     RED = '\033[31m'
     GREEN = '\033[32m'

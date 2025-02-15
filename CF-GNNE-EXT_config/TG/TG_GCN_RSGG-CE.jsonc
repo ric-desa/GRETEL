@@ -1,6 +1,6 @@
 {  
     "experiment" : {
-        "scope": "BAS BASE",
+        "scope": "TG RSGG-CE",
         "parameters" : {
             "lock_release_tout":120,
             "propagate":[
@@ -15,15 +15,15 @@
             "class": "src.dataset.dataset_base.Dataset",
             "parameters": {
                 "generator": {
-                    "class": "src.dataset.generators.bashapes.BAShapes",
-                    "parameters": { "num_instances": 5000, "nodes_num": 64, "edges_per_node": 1}
+                    "class": "src.dataset.generators.treegrid.TreeGrid",
+                    "parameters": { "num_instances": 5000, "tree_height": 6, "grid_size": 3}
                 } 
             }
         },
         "oracle": {
             "class": "src.oracle.nn.torch.OracleTorch",
             "parameters": {
-                "epochs": 100,
+                "epochs": 20,
                 "batch_size": 32,
                 "optimizer": {
                     "class": "torch.optim.RMSprop",
@@ -51,8 +51,24 @@
       }
     ],
     
-    "explainers": [{"class": "src.explainer.CF-GNNE.CFGNNExplainer_Ext",
-    "parameters": {"alpha": 0.1, "K": 500, "beta": 0.5, "extended": false}}],
+    "explainers": [{
+        "class": "src.explainer.generative.rsgg.RSGG",
+        "parameters": {
+          "epochs": 10,
+          "models": [
+            {
+                "class": "src.explainer.generative.gans.graph.model.GAN",
+                "parameters": {
+                    "batch_size": 1,
+                    "discriminator": {
+                        "class": "src.explainer.generative.gans.graph.discriminators.TopKPoolingDiscriminator",
+                        "parameters": {}
+                    }
+                }
+            }
+        ]
+        }
+      }],
     "compose_mes" : "config/snippets/default_metrics.json",
     "compose_strs" : "config/snippets/default_store_paths.json"
 }

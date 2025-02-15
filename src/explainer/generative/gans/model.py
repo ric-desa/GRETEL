@@ -76,7 +76,8 @@ class BaseGAN(TorchBase):
         
     def take_oracle_predictions(self, instances, y_true):
         #TODO Parsed to torch tensor rollback to np array
-        oracle_scores = [torch.sigmoid(torch.from_numpy(self.oracle.predict_proba(inst))[1-self.explainee_label]) for inst in instances]
+        # oracle_scores = [torch.sigmoid(torch.from_numpy(self.oracle.predict_proba(inst))[1-self.explainee_label]) for inst in instances]
+        oracle_scores = [torch.sigmoid((torch.from_numpy(prob) if not torch.is_tensor(prob) else prob)[1 - self.explainee_label]) for prob in (self.oracle.predict_proba(inst) for inst in instances)] # Handling when probabilities are already tensors
         # oracle_scores = [torch.sigmoid(self.oracle.predict_proba(inst)[1-self.explainee_label]) for inst in instances]
         # The following update to the oracle scores is needed to have
         # the same order of magnitude between real and generated sample losses

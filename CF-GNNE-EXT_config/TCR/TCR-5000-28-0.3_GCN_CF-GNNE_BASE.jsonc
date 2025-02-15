@@ -1,6 +1,6 @@
 {  
     "experiment" : {
-        "scope": "TCR BASE",
+        "scope": "TCR BASE 2",
         "parameters" : {
             "lock_release_tout":120,
             "propagate":[
