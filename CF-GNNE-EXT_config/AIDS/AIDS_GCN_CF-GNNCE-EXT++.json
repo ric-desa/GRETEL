@@ -1,6 +1,6 @@
 {  
     "experiment": {
-        "scope": "AIDS/CFGNNE",
+        "scope": "AIDS/CFGNNE-EXT++",
         "parameters": {
             "lock_release_tout":120,
             "propagate":[
@@ -60,7 +60,12 @@
                 "learning_rate": 0.1,
                 "K": 50,
                 "beta": 0.5,
-                "extended": false
+                "extended": true,
+                "gamma_edge": 0,
+                "update_node_feat": true,
+                "change_node_feat": true,
+                "gamma_node_feat": 0, 
+                "visualize": false
             }
         }
      ],

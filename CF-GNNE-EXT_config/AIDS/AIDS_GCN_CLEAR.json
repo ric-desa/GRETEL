@@ -1,6 +1,6 @@
 {  
     "experiment": {
-        "scope": "AIDS/CFGNNCE",
+        "scope": "AIDS/CLEAR",
         "parameters": {
             "lock_release_tout":120,
             "propagate":[

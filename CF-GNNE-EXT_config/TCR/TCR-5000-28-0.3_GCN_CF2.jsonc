@@ -1,6 +1,6 @@
 {  
     "experiment" : {
-        "scope": "TCR CF2",
+        "scope": "TCR/CF2",
         "parameters" : {
             "lock_release_tout":120,
             "propagate":[

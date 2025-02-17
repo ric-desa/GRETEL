@@ -1,6 +1,6 @@
 {  
     "experiment" : {
-        "scope": "TG MEG",
+        "scope": "TG/MEG",
         "parameters" : {
             "lock_release_tout":120,
             "propagate":[

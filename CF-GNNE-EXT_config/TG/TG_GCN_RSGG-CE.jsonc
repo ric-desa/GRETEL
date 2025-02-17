@@ -1,6 +1,6 @@
 {  
     "experiment" : {
-        "scope": "TG RSGG-CE",
+        "scope": "TG/RSGG-CE",
         "parameters" : {
             "lock_release_tout":120,
             "propagate":[

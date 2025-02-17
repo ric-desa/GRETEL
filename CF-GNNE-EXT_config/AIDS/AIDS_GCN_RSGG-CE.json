@@ -1,10 +1,10 @@
 {  
     "experiment": {
-        "scope": "AIDS/CFGNNE",
+        "scope": "AIDS/RSGG-CE",
         "parameters": {
             "lock_release_tout":120,
             "propagate":[
-                {"in_sections" : ["explainers"], "params": {"fold_id":-1}},
+                {"in_sections" : ["explainers"], "params": {"fold_id":1}},
                 {"in_sections" : ["do-pairs/oracle"], "params": {"fold_id": -1}},
                 {"in_sections": ["do-pairs/dataset"],"params": 
                     { "manipulators" : [
@@ -53,17 +53,24 @@
             }   
         }
     } ],
-    "explainers": [ 
-        {
-            "class": "src.explainer.generative.cfgnn.CFGNNExplainer_Ext",
-            "parameters": {
-                "learning_rate": 0.1,
-                "K": 50,
-                "beta": 0.5,
-                "extended": false
+    "explainers": [{
+        "class": "src.explainer.generative.rsgg.RSGG",
+        "parameters": {
+          "epochs": 10,
+          "models": [
+            {
+                "class": "src.explainer.generative.gans.graph.model.GAN",
+                "parameters": {
+                    "batch_size": 1,
+                    "discriminator": {
+                        "class": "src.explainer.generative.gans.graph.discriminators.TopKPoolingDiscriminator",
+                        "parameters": {}
+                    }
+                }
             }
+        ]
         }
-     ],
+      }],
     "compose_mes" : "config/snippets/default_metrics_w_dumper.json",
     "compose_strs" : "config/snippets/default_store_paths.json"
 }

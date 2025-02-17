@@ -1,6 +1,6 @@
 {  
     "experiment": {
-        "scope": "AIDS/CFGNNE",
+        "scope": "BZR/CLEAR",
         "parameters": {
             "lock_release_tout":120,
             "propagate":[
@@ -13,8 +13,7 @@
                         ] 
                     }
                 }
-            ],
-            "expand" : {  "folds" : [ "explainers"], "triplets" : true } 
+            ]
         }
     },
 
@@ -24,14 +23,14 @@
             "parameters": {
                 "generator": {
                     "class": "src.dataset.generators.TUDataset.TUDataset",
-                    "parameters": { "alias": "AIDS" }
+                    "parameters": { "alias": "BZR" }
                 }
             }
         },
         "oracle": {
             "class": "src.oracle.nn.torch.OracleTorch",
             "parameters": {
-                "epochs": 50,
+                "epochs": 500,
                 "batch_size": 32,
                 "early_stopping_threshold":1e-4,
                 "optimizer": {
@@ -54,16 +53,8 @@
         }
     } ],
     "explainers": [ 
-        {
-            "class": "src.explainer.generative.cfgnn.CFGNNExplainer_Ext",
-            "parameters": {
-                "learning_rate": 0.1,
-                "K": 50,
-                "beta": 0.5,
-                "extended": false
-            }
-        }
+        {"class": "src.explainer.generative.clear.CLEARExplainer","parameters":{ "epochs": 10, "lr": 0.01, "lambda_cfe": 0.1, "alpha": 0.4, "batch_size": 32 }}
      ],
-    "compose_mes" : "config/snippets/default_metrics_w_dumper.json",
+    "compose_mes" : "config/snippets/default_metrics.json",
     "compose_strs" : "config/snippets/default_store_paths.json"
 }

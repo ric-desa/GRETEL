@@ -1,6 +1,6 @@
 {  
     "experiment" : {
-        "scope": "BAS/CFGNNCE-EXT",
+        "scope": "BAS/CFGNNE-EXT",
         "parameters" : {
             "lock_release_tout":120,
             "propagate":[
@@ -50,8 +50,18 @@
         }
       }
     ],
-    "explainers": [{"class": "src.explainer.CF-GNNE.CFGNNExplainer_Ext",
-    "parameters": {"alpha": 0.1, "K": 500, "beta": 0.5, "extended": true, "gamma_edge": 0, "change_node_feat": false, "gamma_node_feat": 0, "visualize": false}}],
+    "explainers": [
+      {"class": "src.explainer.CF-GNNE.CFGNNExplainer_Ext",
+      "parameters": {
+        "alpha": 0.1,
+        "K": 500,
+        "beta": 0.5,
+        "extended": true,
+        "gamma_edge": 0.01,
+        "update_node_feat": false,
+        "change_node_feat": false,
+        "gamma_node_feat": 0,
+        "visualize": false}}],
     "compose_mes" : "config/snippets/default_metrics.json",
     "compose_strs" : "config/snippets/default_store_paths.json"
 }

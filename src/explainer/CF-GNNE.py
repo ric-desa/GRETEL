@@ -30,8 +30,9 @@ class CFGNNExplainer_Ext(Explainer):
         self.β = local_params['beta'] # β: Trade-off between Lpred and Ldist Eq.1 [4]
         self.extended = local_params['extended'] # Use extended version of the algorithm
         self.γ_edges = local_params['gamma_edge'] # γ: Add missing edges to the edge perturbation matrix (γ ∈ [0, 1])
-        self.change_node_feat = local_params['change_node_feat'] # Allow node features to change instead of just keep or discard a given feature
-        self.γ_node_feat = local_params['gamma_node_feat'] # γ: Add missing node features to the node features perturbation matrix (γ ∈ [0, 1])
+        self.update_node_feat = local_params['update_node_feat'] # Allow to update node features (gate or change them freely)
+        self.change_node_feat = local_params['change_node_feat'] # Allow node features to change freely instead of just keep or discard a given feature (gating)
+        self.γ_node_feat = local_params['gamma_node_feat'] # γ: Add missing node features to the node features perturbation matrix (γ ∈ [0, 1]) (NOT USED FOR CURRENT INITIALIZATION Ⅱ)
         self.debugging = local_params['debugging'] # Print debugging code one iteration at a time
         self.visualize = local_params['visualize'] # Visualize inital graph and CF found (if no valid CF is found then it draws the CF at last iteration)
 
@@ -44,6 +45,7 @@ class CFGNNExplainer_Ext(Explainer):
         assert ((isinstance(self.β, float) or isinstance(self.β, int)) and self.β >= 0)
         assert (isinstance(self.extended, bool))
         assert ((isinstance(self.γ_edges, float) or isinstance(self.γ_edges, int)) and 0 <= self.γ_edges <= 1)
+        assert (isinstance(self.update_node_feat, bool))
         assert (isinstance(self.change_node_feat, bool))
         assert ((isinstance(self.γ_node_feat, float) or isinstance(self.γ_node_feat, int)) and 0 <= self.γ_node_feat <= 1)
         assert (isinstance(self.debugging, bool))
@@ -66,13 +68,16 @@ class CFGNNExplainer_Ext(Explainer):
             local_config['parameters']['extended'] = True
             
         if 'gamma_edge' not in local_config['parameters']:
-            local_config['parameters']['gamma_edge'] = 0
+            local_config['parameters']['gamma_edge'] = 0.01
 
+        if 'update_node_feat' not in local_config['parameters']:
+            local_config['parameters']['update_node_feat'] = True    
+        
         if 'change_node_feat' not in local_config['parameters']:
             local_config['parameters']['change_node_feat'] = True
             
         if 'gamma_node_feat' not in local_config['parameters']:
-            local_config['parameters']['gamma_node_feat'] = 0
+            local_config['parameters']['gamma_node_feat'] = 0.01
 
         if 'debugging' not in local_config['parameters']:
             local_config['parameters']['debugging'] = False
@@ -106,13 +111,14 @@ class CFGNNExplainer_Ext(Explainer):
             self.P_hat.requires_grad_(True) # Enable backpropagation
             if self.debugging: print(f"P_hat == instance.data: {torch.equal(self.P_hat, torch.tensor(instance.data))}") # Debugging: γ_edges != 0 ←→ it prints False
 
-            if not self.change_node_feat: # Enable only discarding or adding of node features (node feature gating)
-                self.P_node_hat = torch.ones(instance.node_features.shape, requires_grad=True) # Initialization of P_node_hat: Perturbation Matrix for Node Features
-            else: # Allow node features to change features
-                # self.P_node_hat = torch.tensor(instance.node_features, requires_grad=False) # Initialization Ⅰ of P_node_hat: Perturbation Matrix for Node Features. Init as node_features.
-                # self.P_node_hat[missing_nodefeatures] = self.γ_node_feat # Add node features where they are missing (0)
-                # self.P_node_hat.requires_grad_(True) # Enable backpropagation
-                self.P_node_hat = torch.ones(instance.node_features.shape, requires_grad=True) # Initialization Ⅱ of P_node_hat: Perturbation Matrix for Node Features. Init as ones.
+            if self.update_node_feat:
+                if not self.change_node_feat: # Enable only discarding or adding of node features (node feature gating)
+                    self.P_node_hat = torch.ones(instance.node_features.shape, requires_grad=True) # Initialization of P_node_hat: Perturbation Matrix for Node Features
+                elif self.change_node_feat: # Allow node features to change features
+                    # self.P_node_hat = torch.tensor(instance.node_features, requires_grad=False) # Initialization Ⅰ of P_node_hat: Perturbation Matrix for Node Features. Init as node_features.
+                    # self.P_node_hat[missing_nodefeatures] = self.γ_node_feat # Add node features where they are missing (0)
+                    # self.P_node_hat.requires_grad_(True) # Enable backpropagation
+                    self.P_node_hat = torch.ones(instance.node_features.shape, requires_grad=True) # Initialization Ⅱ of P_node_hat: Perturbation Matrix for Node Features. Init as ones.
 
         self.x = torch.tensor(instance.node_features, dtype=torch.float64) # Feature vector for v [3.1]
         self.v = (self.A_v, self.x) # [3.1]
@@ -136,50 +142,36 @@ class CFGNNExplainer_Ext(Explainer):
             
             # Manually retrieve and store gradients
             self.A_v_bar.grad = torch.autograd.grad(loss, self.A_v_bar, retain_graph=True)[0]
-            self.N_v_bar.grad = torch.autograd.grad(loss, self.N_v_bar, retain_graph=True)[0]
+            if self.update_node_feat: self.N_v_bar.grad = torch.autograd.grad(loss, self.N_v_bar, retain_graph=True)[0]
 
             if not self.valid_CF: # L_pred contributing to Total Loss
                 self.A_v_bar.grad += torch.zeros_like(self.A_v_bar, dtype=torch.double) # Initialize A_v_bar gradients with zeroes
                 # Adding gradients from self.w.grad to the positions specified in self.edge_indices, i.e. they are the non-zero and contributing edges to the classification
                 self.A_v_bar.grad[self.edge_indices] += self.w.grad 
                 
-                # Adding L_pred contribution to the L_dist                
-                self.N_v_bar.grad += torch.zeros_like(self.N_v_bar, dtype=torch.double)            
-                self.N_v_bar.grad += self.x_.grad.clone() # Adding L_pred contribution to the L_dist
+                # Adding L_pred contribution to the L_dist
+                if self.update_node_feat:             
+                    self.N_v_bar.grad += torch.zeros_like(self.N_v_bar, dtype=torch.double)            
+                    self.N_v_bar.grad += self.x_.grad.clone() # Adding L_pred contribution to the L_dist
                 
             self.A_v_bar.backward(torch.ones_like(self.A_v_bar)) # Perform backward pass
-            self.N_v_bar.backward(torch.ones_like(self.N_v_bar)) # Perform backward pass            
+            if self.update_node_feat: self.N_v_bar.backward(torch.ones_like(self.N_v_bar)) # Perform backward pass            
 
             with torch.no_grad():  # Update without tracking the gradients further
                 self.P_hat -= self.α * self.P_hat.grad # Gradient update step with learning rate
+                if self.debugging: print(f"P_hat.grad: {self.P_hat.grad}")
 
-                if self.extended: # self.P_node_hat (nodes features perturbation matrix) exists only in the extended algorithm
+                if self.extended and self.update_node_feat: # self.P_node_hat (nodes features perturbation matrix) exists only in the extended algorithm where node features perturbations are allowed
                     self.P_node_hat -= self.α * self.P_node_hat.grad # Gradient update step with learning rate
-                    if self.debugging: print(f"P_hat: {self.P_node_hat.grad}")
+                    if self.debugging: print(f"P_node_hat.grad: {self.P_node_hat.grad}")
                                 
             self.P_hat.grad.zero_() # zero gradients for next iteration
-            if self.extended: # self.P_node_hat exists only in the extended algorithm
+            if self.extended and self.update_node_feat: # self.P_node_hat exists only in the extended algorithm where node features perturbations are allowed
                 self.P_node_hat.grad.zero_() # zero gradients for next iteration
 
             if self.debugging: input(f"Iteraton {_} finished | Press Enter to continue")
 
             if self.valid_CF: break # Breaking at first CF found (Different from paper algorithm → Efficiency reason: avoiding extra loop iterations)
-                        
-            # node_feat_difference = self.N_v_bar.clone().detach().numpy() - instance.node_features
-            # input(node_feat_difference)
-            # input(self.x)
-
-            if self.visualize:
-                instance_graph = nx.from_numpy_array(instance.data)
-                CF_graph = nx.from_numpy_array(self.A_v_bar.clone().detach().numpy())
-
-                # Draw graphs. Node colours are the mean of the node features
-                fig, axes = plt.subplots(1, 2, figsize=(12, 6))
-                nx.draw(instance_graph, pos=self.pos, ax=axes[0], with_labels=True, cmap='cool', node_color=instance.node_features.mean(axis=1), edge_color='gray')
-                axes[0].set_title(f"Initial Graph | Predicted Class: {self.f_v}")
-                nx.draw(CF_graph, pos=self.pos, ax=axes[1], with_labels=True, cmap='cool', node_color=self.A_v_bar.clone().detach().numpy().mean(axis=1), edge_color='gray')
-                axes[1].set_title(f"Counterfactual Graph | Predicted Class: {self.g_v_bar_pred}")
-                plt.show()
         
         edge_indices = torch.where(self.v_bar_opt[0] != 0) # (int tensor)
         edge_weights = self.v_bar_opt[0][edge_indices] # (real tensor)
@@ -213,17 +205,13 @@ class CFGNNExplainer_Ext(Explainer):
         if self.debugging: print(f"{Color.MAGENTA}Opt predicted class: {Color.RESET}{self.oracle.predict(v_bar_opt_GI)}")
         if self.visualize:
             instance_graph = nx.from_numpy_array(instance.data)
-            CF_graph = nx.from_numpy_array(self.v_bar_opt[0].clone().detach().numpy())
-            
-            # node_feat_difference = self.N_v_bar.clone().detach().numpy() - instance.node_features
-            # print(node_feat_difference)
-            # print(self.N_v_bar, self.x); input()
+            CF_graph = nx.from_numpy_array(self.A_v_bar.clone().detach().numpy())
 
             # Draw graphs. Node colours are the mean of the node features
             fig, axes = plt.subplots(1, 2, figsize=(12, 6))
             nx.draw(instance_graph, pos=self.pos, ax=axes[0], with_labels=True, cmap='cool', node_color=instance.node_features.mean(axis=1), edge_color='gray')
             axes[0].set_title(f"Initial Graph | Predicted Class: {self.f_v}")
-            nx.draw(CF_graph, pos=self.pos, ax=axes[1], with_labels=True, cmap='cool', node_color=self.v_bar_opt[1].clone().detach().numpy().mean(axis=1), edge_color='gray')
+            nx.draw(CF_graph, pos=self.pos, ax=axes[1], with_labels=True, cmap='cool', node_color=self.N_v_bar.clone().detach().numpy().mean(axis=1), edge_color='gray')
             axes[1].set_title(f"Counterfactual Graph | Predicted Class: {self.g_v}")
             plt.show()           
 
@@ -244,7 +232,7 @@ class CFGNNExplainer_Ext(Explainer):
         """
         # [line 1]: P ← threshold(σ(P_hat))
         P_sigmoid = torch.sigmoid(self.P_hat) # Threshold on sigmoid of P_hat
-        mask = (P_sigmoid > .5).float().clone() # Hard mask
+        mask = (P_sigmoid > .5).float().clone() # Hard mask (> instead of >=, with >= also 0 values in P_hat evaluate to 1 and a fully connected matrix is obtained)
         P = P_sigmoid + (mask - P_sigmoid).detach() # Gradients can flow through P
 
         self.A_v_bar = P * self.A_v # [line 2]: Ā_v = P ⊙ A_v
@@ -255,11 +243,11 @@ class CFGNNExplainer_Ext(Explainer):
         edge_weights = self.A_v_bar[self.edge_indices] # Values of A_v_bar edges, i.e. weights for the presence of edges (real tensor)
         edge_weights_np = edge_weights.clone().detach().numpy() # Conversion to numpy array (GraphInstance requires np arrays)
 
-        if self.extended: # Perturb node features
+        if self.extended and self.update_node_feat: # Perturb node features
             if not self.change_node_feat: # Either discard or maintain the node feature (gating)
                 # Repeat previous steps for N_v_bar
                 N_sigmoid = torch.sigmoid(self.P_node_hat) # Threshold on sigmoid of P_node_hat
-                mask = (N_sigmoid > .5).float().clone() # Hard mask
+                mask = (N_sigmoid > .5).float().clone() # Hard mask (> instead of >=)
                 N = N_sigmoid + (mask - N_sigmoid).detach() # Gradients can flow through N
 
                 self.N_v_bar = N * self.x # N ⊙ x
@@ -268,8 +256,9 @@ class CFGNNExplainer_Ext(Explainer):
                 self.N_v_bar = self.P_node_hat * self.x # For initialization Ⅱ
 
         else: # Keep same node features
-            self.N_v_bar = self.x.clone()
-            self.N_v_bar.requires_grad_(True) # Enable backpropagation
+            # self.N_v_bar = self.x.clone()
+            self.N_v_bar = torch.tensor(instance.node_features, dtype=torch.float64) # Feature vector for v [3.1]
+            self.N_v_bar.requires_grad_(False) # Enable backpropagation
         
         v_bar_cand = (self.A_v_bar, self.N_v_bar) # [line 3]: v_bar_cand ← (Ā_v, x)   
         
