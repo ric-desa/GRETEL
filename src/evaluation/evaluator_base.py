@@ -5,6 +5,7 @@ from os.path import join
 
 from src.core.explainer_base import Explainer
 from src.core.oracle_base import Oracle
+from src.core.embedder_base import Embedder
 from src.utils.context import Context, clean_cfg
 from src.utils.logger import GLogger
 
@@ -12,7 +13,7 @@ from src.utils.logger import GLogger
 class Evaluator(ABC):
     _logger = GLogger.getLogger()
 
-    def __init__(self,scope, data, oracle: Oracle, explainer: Explainer, evaluation_metrics, results_store_path, run_number=0) -> None:
+    def __init__(self,scope, data, oracle: Oracle, explainer: Explainer, embedders:dict[Embedder], evaluation_metrics, results_store_path, run_number=0) -> None:
         super().__init__()
         self._scope = scope
         self._name = 'Evaluator_for_' + explainer.name + '_using_' + oracle.name
@@ -20,12 +21,11 @@ class Evaluator(ABC):
         self._oracle = oracle
         self._oracle.reset_call_count()
         self._explainer = explainer
+        self.embedders = embedders
         self._results_store_path = results_store_path
         self._evaluation_metrics = evaluation_metrics
         self._run_number = run_number
         self._explanations = []
-        
-       
         
 
         # Building the config file to write into disk
@@ -44,7 +44,6 @@ class Evaluator(ABC):
         self._results = {}
         self._complete = {'config':evaluator_config, "results":self._results}
 
-        
 
     @property
     def name(self):
@@ -143,9 +142,13 @@ class Evaluator(ABC):
             oracle = self._oracle
 
         for metric in self._evaluation_metrics:
-            if(not metric._special):        
-                m_result = metric.evaluate(instance, counterfactual, oracle, explainer,dataset)
-                self._results[Context.get_fullname(metric)].append({"id":str(instance.id),"value":m_result})
+            if(not metric._special):    
+                if metric.__class__.__name__ == "CosineSimilarityMetric":
+                    m_result = metric.evaluate(instance, counterfactual, oracle, explainer, dataset, self.embedders)
+                    self._results[Context.get_fullname(metric)].append({"id":str(instance.id),"value":m_result})
+                else:    
+                    m_result = metric.evaluate(instance, counterfactual, oracle, explainer, dataset)
+                    self._results[Context.get_fullname(metric)].append({"id":str(instance.id),"value":m_result})
 
 
     def write_results(self,fold_id):

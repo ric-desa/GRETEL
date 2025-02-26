@@ -41,8 +41,10 @@ class EvaluatorManager:
         do_pairs_list = self.context.conf['do-pairs']
         metrics_list = self.context.conf['evaluation_metrics']
         explainers_list = self.context.conf['explainers']
+        embedder_list = self.context.conf['embedders']
         self._plotters = self.context.conf.get('plotters', None)
         self._evaluation_metrics = []
+        self.embedders = {}
 
         # Shuffling dataset_oracles pairs and explainers will enabling by chance
         # parallel distributed cration and training.
@@ -62,10 +64,16 @@ class EvaluatorManager:
                 oracle = self.context.factories['oracles'].get_oracle(do_pair_snippet['oracle'], dataset)                    
 
                 # The get_explainer method returns an (fitted in case is trainable) explainer for the dataset and the oracle;                
-                explainer = self.context.factories['explainers'].get_explainer(explainer_snippet, dataset, oracle)                
+                explainer = self.context.factories['explainers'].get_explainer(explainer_snippet, dataset, oracle)  
+
+                # Fit the Graph Embedding models on the dataset
+                for embedder_snippet in embedder_list:
+                    embedder = self.context.factories['embedders'].get_embedder(embedder_snippet, dataset)
+                    embedder.fit()
+                    self.embedders[embedder.__class__.__name__] = embedder                    
             
                 # Creating the evaluator
-                evaluator = Evaluator(self.context._scope, dataset, oracle, explainer, self._evaluation_metrics,
+                evaluator = Evaluator(self.context._scope, dataset, oracle, explainer, self.embedders, self._evaluation_metrics,
                                             self._output_store_path, self.context.run_number)
 
                 # Adding the evaluator to the evaluator's list

@@ -8,6 +8,7 @@ from src.evaluation.evaluation_metric_runtime import RuntimeMetric
 from src.evaluation.evaluation_metric_sparsity import SparsityMetric
 from src.evaluation.evaluation_metric_oracle_calls import OracleCallsMetric
 from src.evaluation.evaluation_metric_oracle_accuracy import OracleAccuracyMetric
+from src.evaluation.evaluation_metric_cosine_similarity import CosineSimilarityMetric
 from src.evaluation.evaluation_metric_smiles_levenshtein import SmilesLevenshteinMetric
 from src.evaluation.evaluation_metric_dumper import InstancesDumper
 
@@ -49,6 +50,9 @@ class EvaluationMetricFactory:
         
         elif metric_name == 'oracle_accuracy_node':
             return self.get_oracle_accuracy_node_metric(config_dict=metric_dict)
+        
+        elif metric_name == 'cosine_similarity':
+            return self.get_cosine_similarity_metric(config_dict=metric_dict)
         
         elif metric_name == 'dumper':
             return self.get_dumper_metric(config_dict=metric_dict)
@@ -109,5 +113,9 @@ class EvaluationMetricFactory:
     
     def get_smiles_levenshtein_metric(self, config_dict=None) -> EvaluationMetric:
         result = SmilesLevenshteinMetric(config_dict)
+        return result
+    
+    def get_cosine_similarity_metric(self, config_dict=None) -> EvaluationMetric:
+        result = CosineSimilarityMetric(config_dict)
         return result
 

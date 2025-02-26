@@ -4,8 +4,8 @@
         "parameters": {
             "lock_release_tout":120,
             "propagate":[
-                {"in_sections" : ["explainers"], "params": {"fold_id":0}},
-                {"in_sections" : ["do-pairs/oracle"], "params": {"fold_id": -1}},
+                {"in_sections" : ["explainers"], "params": {"fold_id":-1}},
+                {"in_sections" : ["do-pairs/oracle"], "params": {"fold_id": -1, "retrain": false}},
                 {"in_sections": ["do-pairs/dataset"],"params": 
                     { "manipulators" : [
                         { "class": "src.dataset.manipulators.causality.Causality", "parameters": {} },
@@ -13,8 +13,7 @@
                         ] 
                     }
                 }
-            ],
-            "expand" : {  "folds" : [ "explainers"], "triplets" : true } 
+            ]
         }
     },
 
@@ -31,7 +30,7 @@
         "oracle": {
             "class": "src.oracle.nn.torch.OracleTorch",
             "parameters": {
-                "epochs": 50,
+                "epochs": 1000,
                 "batch_size": 32,
                 "early_stopping_threshold":1e-4,
                 "optimizer": {
@@ -48,13 +47,13 @@
                 },
                 "model": {
                     "class": "src.oracle.nn.gcn.DownstreamGCN",
-                    "parameters": {"num_conv_layers":3,"num_dense_layers":1,"conv_booster":2,"linear_decay":1.8}
+                    "parameters": {"num_conv_layers":2,"num_dense_layers":1,"conv_booster":2,"linear_decay":1.8}
                 }
             }   
         }
     } ],
     "explainers": [{"class": "src.explainer.CF-GNNE.CFGNNExplainer_Ext",
       "parameters": {"alpha": 0.1, "K": 500, "beta": 0.5, "extended": false}}],
-    "compose_mes" : "config/snippets/default_metrics_w_dumper.json",
+    "compose_mes" : "config/snippets/default_metrics.json",
     "compose_strs" : "config/snippets/default_store_paths.json"
 }

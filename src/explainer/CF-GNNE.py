@@ -28,17 +28,22 @@ class CFGNNExplainer_Ext(Explainer):
         self.α = local_params['alpha'] # α: Learning Rate
         self.K = local_params['K'] # K: Number of Iterations (to update pertubation matrices (P_hat, etc.))
         self.β = local_params['beta'] # β: Trade-off between Lpred and Ldist Eq.1 [4]
-        self.extended = local_params['extended'] # Use extended version of the algorithm
+        self.extended = local_params['extended'] # Use extended version of the algorithm (allowing to add edges and not only to drop them)
         self.γ_edges = local_params['gamma_edge'] # γ: Add missing edges to the edge perturbation matrix (γ ∈ [0, 1])
         self.update_node_feat = local_params['update_node_feat'] # Allow to update node features (gate or change them freely)
         self.change_node_feat = local_params['change_node_feat'] # Allow node features to change freely instead of just keep or discard a given feature (gating)
         self.γ_node_feat = local_params['gamma_node_feat'] # γ: Add missing node features to the node features perturbation matrix (γ ∈ [0, 1]) (NOT USED FOR CURRENT INITIALIZATION Ⅱ)
         self.debugging = local_params['debugging'] # Print debugging code one iteration at a time
         self.visualize = local_params['visualize'] # Visualize inital graph and CF found (if no valid CF is found then it draws the CF at last iteration)
+        self.multi_label_classification = local_params['multi_label_classification'] # Whether target classification is multi-class
+        self.dataset_classes = local_params['dataset_classes'] # Dataset classes/labels amount
 
-        # self.loss_fn = torch.nn.BCELoss()
-        self.loss_fn = torch.nn.NLLLoss()
-        # self.loss_fn = torch.nn.CrossEntropyLoss()
+        if not self.multi_label_classification:
+            # self.loss_fn = torch.nn.BCELoss() # useless as model outputs more than one logits
+            # self.loss_fn = torch.nn.NLLLoss() # redundant, just use CE
+            self.loss_fn = torch.nn.CrossEntropyLoss()
+        else: # Multi-Label Classification
+            self.loss_fn = torch.nn.BCEWithLogitsLoss() # use for Multi-Label Classification     
         
         assert ((isinstance(self.K, float) or isinstance(self.K, int)) and self.K >= 1)
         assert ((isinstance(self.α, float) or isinstance(self.α, int)) and self.α > 0)
@@ -50,6 +55,14 @@ class CFGNNExplainer_Ext(Explainer):
         assert ((isinstance(self.γ_node_feat, float) or isinstance(self.γ_node_feat, int)) and 0 <= self.γ_node_feat <= 1)
         assert (isinstance(self.debugging, bool))
         assert (isinstance(self.visualize, bool))
+        assert (isinstance(self.multi_label_classification, bool))
+        assert (isinstance(self.dataset_classes, int))
+
+        if not self.extended:
+            self.update_node_feat = False
+            self.change_node_feat = False
+        elif not self.update_node_feat:
+            self.change_node_feat = False
 
     def check_configuration(self):
         super().check_configuration()
@@ -84,6 +97,12 @@ class CFGNNExplainer_Ext(Explainer):
 
         if 'visualize' not in local_config['parameters']:
             local_config['parameters']['visualize'] = False
+        
+        if 'multi_label_classification' not in local_config['parameters']:
+            local_config['parameters']['multi_label_classification'] = False
+        
+        if 'dataset_classes' not in local_config['parameters']:
+            local_config['parameters']['dataset_classes'] = 2
                
         self.fold_id = self.local_config['parameters'].get('fold_id',-1)
 
@@ -344,13 +363,20 @@ class CFGNNExplainer_Ext(Explainer):
         """
         # 1. Prediction loss: L_pred
         # Get the original prediction and counterfactual prediction
-        self.g_v_probabilities = F.log_softmax(self.g_v_logits, dim=0) # Prediction log probabilities required for NLL loss
-        f_v_probabilities = torch.nn.functional.one_hot(self.f_v, num_classes=2).long() # One-hot encoding of the class required for the loss
+        if isinstance(self.loss_fn, torch.nn.CrossEntropyLoss): # Single-label classification
+            inputs = self.g_v_logits
+            targets = self.f_v
+        elif isinstance(self.loss_fn, torch.nn.BCEWithLogitsLoss): # Multi-label classification
+            inputs = self.g_v_logits 
+            targets = (torch.nn.functional.one_hot(self.f_v, num_classes=self.dataset_classes).sum(dim=1)>0).float() # Create a multi-one-hot (mask to prevent eventual class label repetitions)
+        elif isinstance(self.loss_fn, torch.nn.NLLLoss): # CE is just NNL with log+softmax included
+            inputs = F.log_softmax(self.g_v_logits, dim=0) # Prediction log probabilities required for NLL loss
+            targets = self.f_v
 
         # If f(v) == f(v_bar), the loss is 0; otherwise, compute NLL loss
         if not self.valid_CF: 
             # Use negative log-likelihood loss (NLL) between for predicted logits and ground truth (Loss Function Optimization) [5.3]
-            L_pred = self.loss_fn(self.g_v_probabilities, f_v_probabilities)
+            L_pred = self.loss_fn(inputs, targets)
             L_pred = -1 * L_pred
         else:
             L_pred = 0  # No loss if predictions are different
