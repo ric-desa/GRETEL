@@ -110,7 +110,8 @@ class CFGNNExplainer_Ext(Explainer):
         """
         Find a Counterfactual for ```instance```. The closest among the ones found will be returned.
         """        
-        self.f_v = torch.tensor(self.oracle.predict(instance), dtype=torch.long) # Get GCN prediction
+        self.f_v = self.oracle.predict(instance).clone().detach() # Get GCN prediction
+        # self.f_v = torch.tensor(self.oracle.predict(instance), dtype=torch.long) # Get GCN prediction
         self.g_v = self.f_v # CF predicted class
         if self.debugging: print(f"{Color.YELLOW}Initial prediction (f_v): {Color.RESET}{self.f_v}") # Debugging
 
@@ -237,7 +238,7 @@ class CFGNNExplainer_Ext(Explainer):
         if self.debugging: print(f"{Color.GREEN}{self.f_v}{Color.RESET} | {Color.MAGENTA}{self.oracle.predict(instance)}{Color.RESET} | {Color.YELLOW}{self.oracle.predict(v_bar_opt_GI)}{Color.RESET} | {self.g_v_bar_pred}")
 
         if not self.opt_flag:
-            print(f"{Color.RED}CF not found{Color.RESET}")
+            print(f"{Color.RED}CF not found{Color.RESET}, original: {Color.MAGENTA}{self.f_v}{Color.RESET}")
             return instance
 
         return v_bar_opt_GI
@@ -328,19 +329,19 @@ class CFGNNExplainer_Ext(Explainer):
 
         # Computing f(v_bar_cand)
         self.g_v_logits = _real_predict_gradients(A_v_bar_GI) # Oracle CF prediction → returns probabilities
-        g_v_bar_pred = torch.argmax(self.g_v_logits).item() # Getting the predicted class
-        if g_v_bar_pred != self.oracle.predict(A_v_bar_GI): input(f"{Color.RED}Warning{Color.RESET} | Oracle's prediction is ambiguous")
+        g_v_bar_pred = torch.argmax(self.g_v_logits, dim=-1) # Getting the predicted class
+        if torch.any(g_v_bar_pred != self.oracle.predict(A_v_bar_GI)): input(f"{Color.RED}Warning{Color.RESET} | Oracle's prediction is ambiguous")
         self.g_v_bar_pred = g_v_bar_pred
 
         self.valid_CF = False # Flag for valid CF
         with torch.no_grad():
-            if self.f_v.item() != g_v_bar_pred: # [line 4]: if f(v) ≠ f(v_bar_cand) (valid CF: initial prediction is different from current one)
+            if torch.any(self.f_v != g_v_bar_pred): # [line 4]: if f(v) ≠ f(v_bar_cand) (valid CF: initial prediction is different from current one)
                 self.valid_CF = True # Valid CF is found
                 v_bar = v_bar_cand # [line 5]: v_bar ← v_bar_cand
 
                 if not self.opt_flag: # [line 6]: if not v_bar_opt then
                     self.v_bar_opt = v_bar # [line 7]: v_bar_opt ← v_bar # First CF
-                    print(f"{Color.GREEN}Found valid counterfactual - {Color.CYAN}Counterfactual predicted class: {Color.RESET}{g_v_bar_pred}")  # Debugging
+                    print(f"{Color.GREEN}Found valid counterfactual - {Color.CYAN}Counterfactual predicted class: {Color.BLUE}{g_v_bar_pred} instead of {Color.MAGENTA}{self.f_v}{Color.RESET}")  # Debugging
                     self.edge_weights_opt = edge_weights_np
                     self.opt_flag = True # CF found
                     self.g_v = g_v_bar_pred
@@ -367,8 +368,10 @@ class CFGNNExplainer_Ext(Explainer):
             inputs = self.g_v_logits
             targets = self.f_v
         elif isinstance(self.loss_fn, torch.nn.BCEWithLogitsLoss): # Multi-label classification
-            inputs = self.g_v_logits 
-            targets = (torch.nn.functional.one_hot(self.f_v, num_classes=self.dataset_classes).sum(dim=1)>0).float() # Create a multi-one-hot (mask to prevent eventual class label repetitions)
+            # inputs = self.g_v_logits - (self.g_v_logits - self.g_v_logits.argmax(dim=-1).unsqueeze(-1)).detach()
+            inputs = self.g_v_logits # F.gumbel_softmax(self.g_v_logits, dim=-1, hard=True)
+            # targets = (torch.nn.functional.one_hot(self.f_v, num_classes=self.dataset_classes).sum(dim=1)>0).float() # Create a multi-one-hot from a vector with many class labes eg. [0,2,3] -> [1,0,1,1] (mask to prevent eventual class label repetitions eg. [2,4,4,5])
+            targets = torch.nn.functional.one_hot(self.f_v, num_classes=self.dataset_classes).float() # having target label for each node -> one-hot for each label
         elif isinstance(self.loss_fn, torch.nn.NLLLoss): # CE is just NNL with log+softmax included
             inputs = F.log_softmax(self.g_v_logits, dim=0) # Prediction log probabilities required for NLL loss
             targets = self.f_v

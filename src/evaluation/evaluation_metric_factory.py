@@ -1,6 +1,7 @@
 from src.evaluation.evaluation_metric_fidelity_node import FidelityNodeMetric
 from src.evaluation.evaluation_metric_oracle_accuracy_node_classification import OracleAccuracyNodeMetric
 from src.evaluation.evaluation_metric_correctness import CorrectnessMetric
+from src.evaluation.evaluation_metric_node_correctness import NodeCorrectnessMetric
 from src.evaluation.evaluation_metric_fidelity import FidelityMetric
 from src.evaluation.evaluation_metric_base import EvaluationMetric
 from src.evaluation.evaluation_metric_ged import GraphEditDistanceMetric
@@ -35,6 +36,9 @@ class EvaluationMetricFactory:
 
         elif metric_name == 'correctness':
             return self.get_correctness_metric(config_dict=metric_dict)
+        
+        elif metric_name == 'node_correctness':
+            return self.get_node_correctness_metric(config_dict=metric_dict)
 
         elif metric_name == 'fidelity':
             return self.get_fidelity_metric(config_dict=metric_dict)
@@ -74,6 +78,10 @@ class EvaluationMetricFactory:
 
     def get_correctness_metric(self, config_dict=None) -> EvaluationMetric:
         result = CorrectnessMetric(config_dict)
+        return result
+
+    def get_node_correctness_metric(self, config_dict=None) -> EvaluationMetric:
+        result = NodeCorrectnessMetric(config_dict)
         return result
 
     def get_oracle_calls_metric(self, config_dict=None) -> EvaluationMetric:

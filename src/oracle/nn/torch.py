@@ -38,7 +38,7 @@ class OracleTorch(TorchBase, Oracle):
 
 
     def _real_predict(self, data_instance):
-        return torch.argmax(self._real_predict_proba(data_instance)).item()
+        return torch.argmax(self._real_predict_proba(data_instance), dim=-1)
     
     def _real_predict_gradients(self, data_instance):
         '''We added this since we needed gradients to compute how the perturbation on P influences Loss'''

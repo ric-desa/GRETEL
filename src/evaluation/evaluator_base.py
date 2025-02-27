@@ -126,7 +126,7 @@ class Evaluator(ABC):
                     val, counterfactual = metric.evaluate(inst, None, self._oracle,self._explainer,self._data)
                     self._results[Context.get_fullname(metric)].append({"id":str(inst.id),"value":val})
                     self._explanations.append(counterfactual)
-
+    
             self._real_evaluate(inst, counterfactual,self._oracle,self._explainer,self._data)
             self._logger.info('evaluated instance with id %s', str(inst.id))
 
