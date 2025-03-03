@@ -1,6 +1,6 @@
 {  
     "experiment": {
-        "scope": "BZR/CFGNNE",
+        "scope": "BZR-MD/CFGNNE-EXT",
         "parameters": {
             "lock_release_tout":120,
             "propagate":[
@@ -23,20 +23,20 @@
             "parameters": {
                 "generator": {
                     "class": "src.dataset.generators.TUDataset.TUDataset",
-                    "parameters": { "alias": "BZR" }
+                    "parameters": { "alias": "BZR_MD" }
                 }
             }
         },
         "oracle": {
             "class": "src.oracle.nn.torch.OracleTorch",
             "parameters": {
-                "epochs": 500,
+                "epochs": 200,
                 "batch_size": 32,
                 "early_stopping_threshold":1e-4,
                 "optimizer": {
                     "class": "torch.optim.RMSprop",
                     "parameters": {
-                        "lr":0.01
+                        "lr":0.001
                     }
                 },
                 "loss_fn": {
@@ -53,12 +53,13 @@
         }
     } ],
     "explainers": [
-        {"class": "src.explainer.generative.cfgnn.CFGNNExplainer_Ext",
+        {"class": "src.explainer.CF-GNNE.CFGNNExplainer_Ext",
           "parameters": {
-            "alpha": 0.1, 
-            "K": 50, 
-            "beta": 0.5, 
-            "extended": false,
+            "alpha": 0.01, 
+            "K": 500, 
+            "beta": 0, 
+            "extended": true,
+            "gamma_edge": 0.01,
             "update_node_feat": false,            
             "change_node_feat": false
             }

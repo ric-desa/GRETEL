@@ -32,6 +32,7 @@ class CFGNNExplainer_Ext(Explainer):
         self.γ_edges = local_params['gamma_edge'] # γ: Add missing edges to the edge perturbation matrix (γ ∈ [0, 1])
         self.update_node_feat = local_params['update_node_feat'] # Allow to update node features (gate or change them freely)
         self.change_node_feat = local_params['change_node_feat'] # Allow node features to change freely instead of just keep or discard a given feature (gating)
+        self.change_all_feat = local_params['change_all_feat'] # Allow all features to chenge freely (node, edge, graph features)
         self.γ_node_feat = local_params['gamma_node_feat'] # γ: Add missing node features to the node features perturbation matrix (γ ∈ [0, 1]) (NOT USED FOR CURRENT INITIALIZATION Ⅱ)
         self.debugging = local_params['debugging'] # Print debugging code one iteration at a time
         self.visualize = local_params['visualize'] # Visualize inital graph and CF found (if no valid CF is found then it draws the CF at last iteration)
@@ -61,8 +62,12 @@ class CFGNNExplainer_Ext(Explainer):
         if not self.extended:
             self.update_node_feat = False
             self.change_node_feat = False
+            self.change_all_feat = False
         elif not self.update_node_feat:
             self.change_node_feat = False
+            self.change_all_feat = False
+        elif not self.change_node_feat:
+            self.change_all_feat = False
 
     def check_configuration(self):
         super().check_configuration()
@@ -88,6 +93,9 @@ class CFGNNExplainer_Ext(Explainer):
         
         if 'change_node_feat' not in local_config['parameters']:
             local_config['parameters']['change_node_feat'] = True
+
+        if 'change_all_feat' not in local_config['parameters']:
+            local_config['parameters']['change_all_feat'] = True
             
         if 'gamma_node_feat' not in local_config['parameters']:
             local_config['parameters']['gamma_node_feat'] = 0.01
@@ -107,6 +115,12 @@ class CFGNNExplainer_Ext(Explainer):
         self.fold_id = self.local_config['parameters'].get('fold_id',-1)
 
     def explain(self, instance):
+        """edge_features = instance.edge_features
+        print(len(edge_features), len(instance.data), sum(sum(instance.data)))
+        # graph_features = instance.graph_features
+        # print(f"Graph features: {graph_features}")
+        # print(f"Edge features: {edge_features}"); input()
+        input()"""
         """
         Find a Counterfactual for ```instance```. The closest among the ones found will be returned.
         """        
@@ -131,7 +145,7 @@ class CFGNNExplainer_Ext(Explainer):
             self.P_hat.requires_grad_(True) # Enable backpropagation
             if self.debugging: print(f"P_hat == instance.data: {torch.equal(self.P_hat, torch.tensor(instance.data))}") # Debugging: γ_edges != 0 ←→ it prints False
 
-            if self.update_node_feat:
+            if self.update_node_feat: # (Two branches initialize identically)
                 if not self.change_node_feat: # Enable only discarding or adding of node features (node feature gating)
                     self.P_node_hat = torch.ones(instance.node_features.shape, requires_grad=True) # Initialization of P_node_hat: Perturbation Matrix for Node Features
                 elif self.change_node_feat: # Allow node features to change features
@@ -139,9 +153,26 @@ class CFGNNExplainer_Ext(Explainer):
                     # self.P_node_hat[missing_nodefeatures] = self.γ_node_feat # Add node features where they are missing (0)
                     # self.P_node_hat.requires_grad_(True) # Enable backpropagation
                     self.P_node_hat = torch.ones(instance.node_features.shape, requires_grad=True) # Initialization Ⅱ of P_node_hat: Perturbation Matrix for Node Features. Init as ones.
-
+                
+        # Node features
         self.x = torch.tensor(instance.node_features, dtype=torch.float64) # Feature vector for v [3.1]
         self.v = (self.A_v, self.x) # [3.1]
+
+        # Edge features
+        self.e = torch.tensor(instance.edge_features, dtype=torch.float64) # Edge features vector
+        # Creating self.edge_features to store features for all possible edges. If edge is not present, its features are set to 1 for all dimensions.
+        self.feat_dim = instance.edge_features.shape[1] # Extracting edge features dimansionality
+        self.edge_features = torch.ones(instance.data.shape + (self.feat_dim, ), dtype=torch.float64, requires_grad=False) # Edge features matrix for all possible edges (full of ones in each dimension)
+        self.edge_indices = torch.where(torch.tensor(instance.data) != 0) # Indices of existing edges in Adjacency Matrix (integer tensor) 
+        self.edge_features[self.edge_indices] = self.e # Assigning existing edge features
+
+        # Graph features 
+        self.g = torch.tensor(instance.graph_features, dtype=torch.float64) # Graph features
+
+        if self.change_all_feat: # Allow all features to change freely (node, edge, graph features)
+            # self.P_edge_hat = torch.ones(instance.edge_features.shape, requires_grad=True) # Initialization of P_edge_hat: Perturbation Matrix for Edge Features
+            self.P_edge_hat = torch.ones(instance.data.shape + (self.feat_dim, ), dtype=torch.float64, requires_grad=True) # Initialization of P_edge_hat: Perturbation Matrix for Edge Features
+            self.P_graph_hat = torch.ones(instance.graph_features.shape, requires_grad=True) # Initialization of P_graph_hat: Perturbation Matrix for Graph Features
 
         self.v_bar_opt = (torch.tensor(instance.data), self.x) # Initializing optimal CF with the instance itself
 
@@ -196,31 +227,17 @@ class CFGNNExplainer_Ext(Explainer):
         edge_indices = torch.where(self.v_bar_opt[0] != 0) # (int tensor)
         edge_weights = self.v_bar_opt[0][edge_indices] # (real tensor)
         edge_weights = edge_weights.clone().detach().numpy()
+        edge_features = self.edge_features[edge_indices].clone().detach().numpy() # Edge features for the existing edges (np.array)
         
-        try: # Sometimes there are problems with edge features (not all instances have them or problem has not been properly identified)
-            edge_features = instance.edge_features[edge_indices]
-
-            v_bar_opt_GI = GraphInstance(
-                id = instance.id,
-                label = "Optimal CF",
-                data = self.v_bar_opt[0].clone().detach().numpy(),
-                node_features = self.v_bar_opt[1].clone().detach().numpy(),
-                edge_features = edge_features,
-                edge_weights = edge_weights,
-                # edge_weights = self.edge_weights_opt,
-                graph_features = instance.graph_features
-                )
-        except:
-            v_bar_opt_GI = GraphInstance(
-                id = instance.id,
-                label = "Optimal CF",
-                data = self.v_bar_opt[0].clone().detach().numpy(),
-                node_features = self.v_bar_opt[1].clone().detach().numpy(),
-                # edge_features = edge_features,
-                edge_weights = edge_weights,
-                # edge_weights = self.edge_weights_opt,
-                graph_features = instance.graph_features
-                )
+        v_bar_opt_GI = GraphInstance(
+            id = instance.id,
+            label = self.g_v_bar_pred, # Predicted class of the CF
+            data = self.v_bar_opt[0].clone().detach().numpy(),
+            node_features = self.v_bar_opt[1].clone().detach().numpy(),
+            edge_features = edge_features,
+            edge_weights = edge_weights,
+            graph_features = instance.graph_features
+            )
         
         if self.debugging: print(f"{Color.MAGENTA}Opt predicted class: {Color.RESET}{self.oracle.predict(v_bar_opt_GI)}")
         if self.visualize:
@@ -263,7 +280,7 @@ class CFGNNExplainer_Ext(Explainer):
         edge_weights = self.A_v_bar[self.edge_indices] # Values of A_v_bar edges, i.e. weights for the presence of edges (real tensor)
         edge_weights_np = edge_weights.clone().detach().numpy() # Conversion to numpy array (GraphInstance requires np arrays)
 
-        if self.extended and self.update_node_feat: # Perturb node features
+        if self.update_node_feat: # Perturb node features
             if not self.change_node_feat: # Either discard or maintain the node feature (gating)
                 # Repeat previous steps for N_v_bar
                 N_sigmoid = torch.sigmoid(self.P_node_hat) # Threshold on sigmoid of P_node_hat
@@ -273,39 +290,39 @@ class CFGNNExplainer_Ext(Explainer):
                 self.N_v_bar = N * self.x # N ⊙ x
             else: # Allow node features to change freely
                 # self.N_v_bar = self.P_node_hat # For initialization Ⅰ
-                self.N_v_bar = self.P_node_hat * self.x # For initialization Ⅱ
-
+                self.N_v_bar = self.P_node_hat * self.x # For initialization 
         else: # Keep same node features
             # self.N_v_bar = self.x.clone()
             self.N_v_bar = torch.tensor(instance.node_features, dtype=torch.float64) # Feature vector for v [3.1]
-            self.N_v_bar.requires_grad_(False) # Enable backpropagation
+            self.N_v_bar.requires_grad_(False) # Disable backpropagation
+
+        if self.change_all_feat: # Perturb edge and graph features            
+            self.E_v_bar = self.P_edge_hat * self.edge_features # E_v_bar = P_edge_hat ⊙ edge_feats
+            self.E_v_bar = self.E_v_bar[self.edge_indices] # Take only the edge features for the existing edges
+            self.G_v_bar = self.P_graph_hat * self.g # G_v_bar = P_graph_hat ⊙ graph_feats
+        else: # Keep same edge, graph features
+            edge_features = self.edge_features[self.edge_indices] # Edge features for the existing edges
+            self.E_v_bar = edge_features
+            self.E_v_bar.requires_grad_(False) # Disable backpropagation
+
+            self.G_v_bar = torch.tensor(instance.graph_features, dtype=torch.float64)
+            self.G_v_bar.requires_grad_(False) # Disable backpropagation
         
         v_bar_cand = (self.A_v_bar, self.N_v_bar) # [line 3]: v_bar_cand ← (Ā_v, x)   
         
         N_v_bar_np = self.N_v_bar.clone().detach().numpy() # Conversion to numpy array (GraphInstance requires np arrays)
+        E_v_bar_np = self.E_v_bar.clone().detach().numpy() # Conversion to numpy array (GraphInstance requires np arrays)
+        G_v_bar_np = self.G_v_bar.clone().detach().numpy() # Conversion to numpy array (GraphInstance requires np arrays)
 
-        try: # Sometimes there are problems with edge features (not all instances have them or problem has not been properly identified)
-            edge_features = instance.edge_features[self.edge_indices]
-            
-            A_v_bar_GI = GraphInstance( # Creating GraphInstance for Oracle's prediction
-                id = instance.id,
-                label= "CF",
-                data = A_v_bar_np,
-                node_features = N_v_bar_np,
-                edge_features = edge_features,
-                edge_weights = edge_weights_np,
-                graph_features = instance.graph_features
-                )
-        except:
-            A_v_bar_GI = GraphInstance(
-                id = instance.id,
-                label = "CF",
-                data = A_v_bar_np,
-                node_features = N_v_bar_np,
-                # edge_features = edge_features,
-                edge_weights = edge_weights_np,
-                graph_features = instance.graph_features
-                )
+        A_v_bar_GI = GraphInstance( # Creating GraphInstance for Oracle's prediction
+            id = instance.id,
+            label = instance.label,
+            data = A_v_bar_np,
+            node_features = N_v_bar_np,
+            edge_features = E_v_bar_np,
+            edge_weights = edge_weights_np,
+            graph_features = G_v_bar_np
+            )
 
         # Define costume function for gradients computation. Torch Geometric ones do not handle gradients properly:
         # they do not require grads for the weights matrix, hence we cannot compute how the perturbation on P influences the loss.

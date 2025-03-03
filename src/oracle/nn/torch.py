@@ -42,8 +42,6 @@ class OracleTorch(TorchBase, Oracle):
     
     def _real_predict_gradients(self, data_instance):
         '''We added this since we needed gradients to compute how the perturbation on P influences Loss'''
-        # print(f"type torch.py ln41: {type(data_instance.data)}")
-        # print(self._real_predict_proba(data_instance))
         return self._real_predict_proba_gradients(data_instance)
 
     @torch.no_grad()

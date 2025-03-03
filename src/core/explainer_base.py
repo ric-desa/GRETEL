@@ -3,6 +3,7 @@ from src.utils.context import Context
 from src.core.configurable import Configurable
 from src.utils.cfg_utils import retake_dataset, retake_oracle
 
+
 class Explainer(Configurable, metaclass=ABCMeta):
     
     def __init__(self, context: Context, local_config):
