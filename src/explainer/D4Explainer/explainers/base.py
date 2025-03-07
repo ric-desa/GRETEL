@@ -18,16 +18,11 @@ from src.utils.cfg_utils import retake_oracle
 EPS = 1e-6
 
 
-class ExplainerD4(Explainer, object):
-    def __init__(self, task="gc"):
-        super(ExplainerD4, self).__init__()
-        # self.device = device
-        # self.model = torch.load(gnn_model_path, map_location=self.device).to(self.device)
-        self.model = retake_oracle(self.local_config)
-        self.model.eval()
+class ExplainerD4(object):
+    def init(self, task="gc"):
+        # self.model = torch.load(gnn_model_path, map_location=self.device, weights_only=False).to(self.device)
         self.model_name = self.model.__class__.__name__
-        self.name = self.__class__.__name__
-
+        self.nameD4 = self.__class__.__name__
         # self.path = gnn_model_path
         self.last_result = None
         self.vis_dict = None
@@ -306,8 +301,8 @@ class ExplainerD4(Explainer, object):
             image.show()
             if save:
                 if name:
-                    d.WriteDrawingText("image/%s/%s-%d-%s.png" % (self.model_name, name, int(graph.y[0]), self.name))
+                    d.WriteDrawingText("image/%s/%s-%d-%s.png" % (self.model_name, name, int(graph.y[0]), self.nameD4))
                 else:
                     d.WriteDrawingText(
-                        "image/%s/%s-%d-%s.png" % (self.model_name, str(graph.name[0]), int(graph.y[0]), self.name)
+                        "image/%s/%s-%d-%s.png" % (self.model_name, str(graph.name[0]), int(graph.y[0]), self.nameD4)
                     )

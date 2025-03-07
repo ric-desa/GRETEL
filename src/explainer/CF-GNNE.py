@@ -167,12 +167,12 @@ class CFGNNExplainer_Ext(Explainer):
         self.edge_features[self.edge_indices] = self.e # Assigning existing edge features
 
         # Graph features 
-        self.g = torch.tensor(instance.graph_features, dtype=torch.float64) # Graph features
+        # self.g = torch.tensor(instance.graph_features, dtype=torch.float64) # Graph features
 
         if self.change_all_feat: # Allow all features to change freely (node, edge, graph features)
             # self.P_edge_hat = torch.ones(instance.edge_features.shape, requires_grad=True) # Initialization of P_edge_hat: Perturbation Matrix for Edge Features
             self.P_edge_hat = torch.ones(instance.data.shape + (self.feat_dim, ), dtype=torch.float64, requires_grad=True) # Initialization of P_edge_hat: Perturbation Matrix for Edge Features
-            self.P_graph_hat = torch.ones(instance.graph_features.shape, requires_grad=True) # Initialization of P_graph_hat: Perturbation Matrix for Graph Features
+            # self.P_graph_hat = torch.ones(instance.graph_features.shape, requires_grad=True) # Initialization of P_graph_hat: Perturbation Matrix for Graph Features
 
         self.v_bar_opt = (torch.tensor(instance.data), self.x) # Initializing optimal CF with the instance itself
 
@@ -212,12 +212,12 @@ class CFGNNExplainer_Ext(Explainer):
                 self.P_hat -= self.α * self.P_hat.grad # Gradient update step with learning rate
                 if self.debugging: print(f"P_hat.grad: {self.P_hat.grad}")
 
-                if self.extended and self.update_node_feat: # self.P_node_hat (nodes features perturbation matrix) exists only in the extended algorithm where node features perturbations are allowed
+                if self.update_node_feat: # self.P_node_hat (nodes features perturbation matrix) exists only in the extended algorithm where node features perturbations are allowed
                     self.P_node_hat -= self.α * self.P_node_hat.grad # Gradient update step with learning rate
                     if self.debugging: print(f"P_node_hat.grad: {self.P_node_hat.grad}")
                                 
             self.P_hat.grad.zero_() # zero gradients for next iteration
-            if self.extended and self.update_node_feat: # self.P_node_hat exists only in the extended algorithm where node features perturbations are allowed
+            if self.update_node_feat: # self.P_node_hat exists only in the extended algorithm where node features perturbations are allowed
                 self.P_node_hat.grad.zero_() # zero gradients for next iteration
 
             if self.debugging: input(f"Iteraton {_} finished | Press Enter to continue")
@@ -290,7 +290,7 @@ class CFGNNExplainer_Ext(Explainer):
                 self.N_v_bar = N * self.x # N ⊙ x
             else: # Allow node features to change freely
                 # self.N_v_bar = self.P_node_hat # For initialization Ⅰ
-                self.N_v_bar = self.P_node_hat * self.x # For initialization 
+                self.N_v_bar = self.P_node_hat * self.x # N_hat ⊙ x (For initialization)
         else: # Keep same node features
             # self.N_v_bar = self.x.clone()
             self.N_v_bar = torch.tensor(instance.node_features, dtype=torch.float64) # Feature vector for v [3.1]
@@ -299,7 +299,7 @@ class CFGNNExplainer_Ext(Explainer):
         if self.change_all_feat: # Perturb edge and graph features            
             self.E_v_bar = self.P_edge_hat * self.edge_features # E_v_bar = P_edge_hat ⊙ edge_feats
             self.E_v_bar = self.E_v_bar[self.edge_indices] # Take only the edge features for the existing edges
-            self.G_v_bar = self.P_graph_hat * self.g # G_v_bar = P_graph_hat ⊙ graph_feats
+            # self.G_v_bar = self.P_graph_hat * self.g # G_v_bar = P_graph_hat ⊙ graph_feats
         else: # Keep same edge, graph features
             edge_features = self.edge_features[self.edge_indices] # Edge features for the existing edges
             self.E_v_bar = edge_features
@@ -312,7 +312,7 @@ class CFGNNExplainer_Ext(Explainer):
         
         N_v_bar_np = self.N_v_bar.clone().detach().numpy() # Conversion to numpy array (GraphInstance requires np arrays)
         E_v_bar_np = self.E_v_bar.clone().detach().numpy() # Conversion to numpy array (GraphInstance requires np arrays)
-        G_v_bar_np = self.G_v_bar.clone().detach().numpy() # Conversion to numpy array (GraphInstance requires np arrays)
+        # G_v_bar_np = self.G_v_bar.clone().detach().numpy() # Conversion to numpy array (GraphInstance requires np arrays)
 
         A_v_bar_GI = GraphInstance( # Creating GraphInstance for Oracle's prediction
             id = instance.id,
@@ -321,7 +321,7 @@ class CFGNNExplainer_Ext(Explainer):
             node_features = N_v_bar_np,
             edge_features = E_v_bar_np,
             edge_weights = edge_weights_np,
-            graph_features = G_v_bar_np
+            graph_features = instance.graph_features # G_v_bar_np
             )
 
         # Define costume function for gradients computation. Torch Geometric ones do not handle gradients properly:

@@ -204,6 +204,8 @@ class Powerful(nn.Module):
     # expects the mask as tensor: batchsize x N x N
     # expects noiselevel as the noislevel that was used as single float
     def forward(self, node_features, A, mask, noiselevel):
+        # print(node_features.shape, A.shape, mask.shape); input()
+        # print(node_features.dtype, A.dtype, mask.dtype); input()
         """
         forward pass of the model
         :param node_features: [batchsize, N, C]
@@ -212,6 +214,7 @@ class Powerful(nn.Module):
         :param noiselevel: single float
         :return: [batchsize, N, N, 1]
         """
+        A = A.float()
         if len(mask.shape) < 4:
             mask = mask[..., None]
         else:

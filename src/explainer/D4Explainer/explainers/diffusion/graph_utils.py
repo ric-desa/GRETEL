@@ -1,5 +1,6 @@
 import torch
 from torch_geometric.utils import degree, to_dense_adj
+import numpy as np
 
 do_check_adjs_symmetry = False
 
@@ -108,10 +109,12 @@ def graph2tensor(graph, device):
         x: [bsz, N, C]
     """
     bsz = graph.num_graphs
-    edge_index = graph.edge_index  # [2, E_total]
+    edge_index = torch.from_numpy(np.array(graph.edge_index)).squeeze(0)  # [2, E_total]
+    # print(bsz, edge_index.shape)
     adj = to_dense_adj(edge_index, batch=graph.batch)  # [bsz, max_num_node, max_num_node]
     max_num_node = adj.size(-1)
-    node_features = graph.x  # [N_total, C]
+    node_features = torch.from_numpy(np.array(graph.x)).squeeze(0).to(device)  # [N_total, C]
+    # print(node_features.shape)
     feature_dim = node_features.size(-1)
     node_sizes = degree(graph.batch, dtype=torch.long).tolist()
     x_split = node_features.split(node_sizes, dim=0)  # list of tensor

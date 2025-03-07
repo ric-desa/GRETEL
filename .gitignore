@@ -150,6 +150,7 @@ evaluated/*
 data/bardh_cache/*
 old_experiments/
 visualizations/*
+src/explainer/D4Explainer/explainers/results/
 
 # videos
 .mp4
