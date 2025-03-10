@@ -1,10 +1,10 @@
 {"evaluation_metrics": [ 
-    {"name": "runtime", "parameters": {}},
-    {"name": "graph_edit_distance", "parameters": {}},
-    {"name": "oracle_calls", "parameters": {}},
-    {"name": "node_correctness", "parameters": {}},
-    {"name": "sparsity", "parameters": {}},
-    {"name": "fidelity", "parameters": {}},
-    {"name": "oracle_accuracy", "parameters": {}},
-    {"name": "cosine_similarity", "parameters": {}}
+    {"name": "runtime_nodes", "parameters": {}},
+    {"name": "graph_edit_distance_nodes", "parameters": {}},
+    {"name": "oracle_calls_nodes", "parameters": {}},
+    {"name": "correctness_nodes", "parameters": {}},
+    {"name": "sparsity_nodes", "parameters": {}},
+    {"name": "fidelity_nodes", "parameters": {}},
+    {"name": "oracle_accuracy_nodes", "parameters": {}},
+    {"name": "cosine_similarity_nodes", "parameters": {}}
 ]}

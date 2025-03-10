@@ -54,7 +54,7 @@
       {"class": "src.explainer.CF-GNNE.CFGNNExplainer_Ext",
       "parameters": {
         "alpha": 0.1,
-        "K": 500,
+        "K": 50,
         "beta": 0.5,
         "extended": true,
         "gamma_edge": 0.01,
@@ -62,7 +62,9 @@
         "change_node_feat": false,
         "gamma_node_feat": 0,
         "visualize": false,
-        "multi_label_classification": true
+        "multi_label_classification": false,
+        "node_classification": true
+        // "node_idxs": [0,1,2,3,4,5]
         }}],
     "compose_mes" : "config/snippets/node_metrics.json",
     "compose_strs" : "config/snippets/default_store_paths.json",

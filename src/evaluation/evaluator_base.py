@@ -143,7 +143,7 @@ class Evaluator(ABC):
 
         for metric in self._evaluation_metrics:
             if(not metric._special):    
-                if metric.__class__.__name__ == "CosineSimilarityMetric":
+                if  "CosineSimilarity" in metric.__class__.__name__:
                     m_result = metric.evaluate(instance, counterfactual, oracle, explainer, dataset, self.embedders)
                     self._results[Context.get_fullname(metric)].append({"id":str(instance.id),"value":m_result})
                 else:    

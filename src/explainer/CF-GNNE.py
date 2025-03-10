@@ -38,6 +38,7 @@ class CFGNNExplainer_Ext(Explainer):
         self.visualize = local_params['visualize'] # Visualize inital graph and CF found (if no valid CF is found then it draws the CF at last iteration)
         self.multi_label_classification = local_params['multi_label_classification'] # Whether target classification is multi-class
         self.dataset_classes = local_params['dataset_classes'] # Dataset classes/labels amount
+        self.node_classification = local_params['node_classification'] # Whether to apply node classification
 
         if not self.multi_label_classification:
             # self.loss_fn = torch.nn.BCELoss() # useless as model outputs more than one logits
@@ -57,6 +58,7 @@ class CFGNNExplainer_Ext(Explainer):
         assert (isinstance(self.debugging, bool))
         assert (isinstance(self.visualize, bool))
         assert (isinstance(self.multi_label_classification, bool))
+        assert (isinstance(self.node_classification, bool))
         assert (isinstance(self.dataset_classes, int))
 
         if not self.extended:
@@ -108,6 +110,9 @@ class CFGNNExplainer_Ext(Explainer):
         
         if 'multi_label_classification' not in local_config['parameters']:
             local_config['parameters']['multi_label_classification'] = False
+
+        if 'node_classification' not in local_config['parameters']:
+            local_config['parameters']['node_classification'] = False
         
         if 'dataset_classes' not in local_config['parameters']:
             local_config['parameters']['dataset_classes'] = 2
@@ -255,7 +260,8 @@ class CFGNNExplainer_Ext(Explainer):
         if self.debugging: print(f"{Color.GREEN}{self.f_v}{Color.RESET} | {Color.MAGENTA}{self.oracle.predict(instance)}{Color.RESET} | {Color.YELLOW}{self.oracle.predict(v_bar_opt_GI)}{Color.RESET} | {self.g_v_bar_pred}")
 
         if not self.opt_flag:
-            print(f"{Color.RED}CF not found{Color.RESET}, original: {Color.MAGENTA}{self.f_v}{Color.RESET}")
+            if not self.node_classification: print(f"{Color.RED}CF not found{Color.RESET}, original: {Color.MAGENTA}{self.f_v}{Color.RESET}")
+            else: print(f"{Color.RED}CF not found{Color.RESET}, original: {Color.MAGENTA}{self.f_v[self.node_id]} [^node id: {self.node_id}]{Color.RESET}")
             return instance
 
         return v_bar_opt_GI
@@ -305,8 +311,8 @@ class CFGNNExplainer_Ext(Explainer):
             self.E_v_bar = edge_features
             self.E_v_bar.requires_grad_(False) # Disable backpropagation
 
-            self.G_v_bar = torch.tensor(instance.graph_features, dtype=torch.float64)
-            self.G_v_bar.requires_grad_(False) # Disable backpropagation
+            # self.G_v_bar = torch.tensor(instance.graph_features, dtype=torch.float64)
+            # self.G_v_bar.requires_grad_(False) # Disable backpropagation
         
         v_bar_cand = (self.A_v_bar, self.N_v_bar) # [line 3]: v_bar_cand ← (Ā_v, x)   
         
@@ -352,13 +358,16 @@ class CFGNNExplainer_Ext(Explainer):
 
         self.valid_CF = False # Flag for valid CF
         with torch.no_grad():
-            if torch.any(self.f_v != g_v_bar_pred): # [line 4]: if f(v) ≠ f(v_bar_cand) (valid CF: initial prediction is different from current one)
+            # [line 4]: if f(v) ≠ f(v_bar_cand) (valid CF: initial prediction is different from current one)
+            if not self.node_classification and torch.all(self.f_v != g_v_bar_pred) or\
+            self.node_classification and self.f_v[self.node_id]!= g_v_bar_pred[self.node_id]:
                 self.valid_CF = True # Valid CF is found
                 v_bar = v_bar_cand # [line 5]: v_bar ← v_bar_cand
 
                 if not self.opt_flag: # [line 6]: if not v_bar_opt then
                     self.v_bar_opt = v_bar # [line 7]: v_bar_opt ← v_bar # First CF
-                    print(f"{Color.GREEN}Found valid counterfactual - {Color.CYAN}Counterfactual predicted class: {Color.BLUE}{g_v_bar_pred} instead of {Color.MAGENTA}{self.f_v}{Color.RESET}")  # Debugging
+                    if not self.node_classification: print(f"{Color.GREEN}Found valid counterfactual - {Color.CYAN}Counterfactual predicted class: {Color.GREEN}{g_v_bar_pred}{Color.CYAN} instead of {Color.MAGENTA}{self.f_v}{Color.RESET}")  # Debugging
+                    else: print(f"{Color.GREEN}Found valid counterfactual [^node id:{self.node_id}] - {Color.CYAN}Counterfactual predicted class: {Color.GREEN}{g_v_bar_pred[self.node_id]}{Color.CYAN} instead of {Color.MAGENTA}{self.f_v[self.node_id]}{Color.RESET}")  # Debugging
                     self.edge_weights_opt = edge_weights_np
                     self.opt_flag = True # CF found
                     self.g_v = g_v_bar_pred
@@ -367,7 +376,8 @@ class CFGNNExplainer_Ext(Explainer):
                 elif self.__distance(self.v[0], v_bar[0]) < self.__distance(self.v[0], self.v_bar_opt[0]): # [line 8]: else if d(v, v_bar) ≤ d(v, v_bar*) then
                     self.v_bar_opt = v_bar # [line 9]: v_bar* ← v_bar # Keep track of best CF
                     self.edge_weights_opt = edge_weights_np
-                    print(f"{Color.BLUE}Found new best counterfactual - {Color.CYAN}Counterfactual predicted class: {Color.RESET}{g_v_bar_pred}")  # Debugging
+                    if not self.node_classification: print(f"{Color.BLUE}Found new best counterfactual - {Color.CYAN}Counterfactual predicted class: {Color.RESET}{g_v_bar_pred}")  # Debugging
+                    else: print(f"{Color.BLUE}Found new best counterfactual [^node id:{self.node_id}] - {Color.CYAN}Counterfactual predicted class: {Color.RESET}{g_v_bar_pred[self.node_id]}")  # Debugging
                     self.g_v = g_v_bar_pred
 
         return
@@ -393,6 +403,10 @@ class CFGNNExplainer_Ext(Explainer):
             inputs = F.log_softmax(self.g_v_logits, dim=0) # Prediction log probabilities required for NLL loss
             targets = self.f_v
 
+        if self.node_classification:
+            inputs = inputs[self.node_id]
+            targets = targets[self.node_id]
+
         # If f(v) == f(v_bar), the loss is 0; otherwise, compute NLL loss
         if not self.valid_CF: 
             # Use negative log-likelihood loss (NLL) between for predicted logits and ground truth (Loss Function Optimization) [5.3]
@@ -415,6 +429,10 @@ class CFGNNExplainer_Ext(Explainer):
         # return L_pred
         return total_loss
     
+    def set_node_id(self, node_id:int):
+        """Call it when computing metrics and iterating over the nodes of the graph. Node id needed for the loss."""
+        self.node_id = node_id
+
     @torch.no_grad()
     def __distance(self, v, CF):
         """
