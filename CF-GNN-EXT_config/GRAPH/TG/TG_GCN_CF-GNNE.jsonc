@@ -52,7 +52,7 @@
     ],
     
     "explainers": [{"class": "src.explainer.CF-GNNE.CFGNNExplainer_Ext",
-    "parameters": {"alpha": 0.1, "K": 500, "beta": 0.5, "extended": false, "visualize": false}}],
+    "parameters": {"alpha": 0.1, "K": 50, "beta": 0.5, "extended": false, "visualize": false}}],
     "compose_mes" : "config/snippets/default_metrics.json",
     "compose_strs" : "config/snippets/default_store_paths.json",
     "embedders": [

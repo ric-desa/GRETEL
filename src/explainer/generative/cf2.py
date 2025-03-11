@@ -29,6 +29,8 @@ class CF2Explainer(Trainable, Explainer):
             self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay
         )
 
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     def check_configuration(self):
         super().check_configuration()
         self.local_config['parameters']['batch_size_ratio'] =  self.local_config['parameters'].get('batch_size_ratio', 0.1)
@@ -76,7 +78,13 @@ class CF2Explainer(Trainable, Explainer):
             cf_instance = deepcopy(instance)
 
             weighted_adj = self.model._rebuild_weighted_adj(instance)
-            masked_adj = self.model.get_masked_adj(weighted_adj).numpy()
+            dvc = weighted_adj.get_device()
+            # print(dvc, self.device)
+            if dvc == -1 and self.device == 'cpu':
+                masked_adj = self.model.get_masked_adj(weighted_adj).numpy()
+            else: 
+                masked_adj = self.model.get_masked_adj(weighted_adj).cpu().numpy()
+                
             # update instance copy from masked_ajd
             # cf_instance.data = masked_adj        
 
@@ -107,9 +115,9 @@ class ExplainModelGraph(torch.nn.Module):
         pred1 = oracle.predict(graph)
 
         # re-build weighted adjacency matrix
-        weighted_adj = self._rebuild_weighted_adj(graph)
+        weighted_adj = self._rebuild_weighted_adj(graph).to(self.device)
         # get the masked_adj
-        masked_adj = self.get_masked_adj(weighted_adj)
+        masked_adj = self.get_masked_adj(weighted_adj).to(self.device)
         # get the new weights as the difference between
         # the weighted adjacency matrix and the masked learned
         new_weights = weighted_adj - masked_adj
@@ -117,7 +125,10 @@ class ExplainModelGraph(torch.nn.Module):
         row_indices, col_indices = torch.where(new_weights != 0)
 
         cf_instance = deepcopy(graph)
-        cf_instance.edge_weights = new_weights[row_indices, col_indices].detach().numpy()
+        if self.device == "cuda":
+            cf_instance.edge_weights = new_weights[row_indices, col_indices].detach().cpu().numpy()
+        else:
+            cf_instance.edge_weights = new_weights[row_indices, col_indices].detach().numpy()
         # avoid old nx representation
         cf_instance._nx_repr = None
         pred2 = oracle.predict(cf_instance)
@@ -139,15 +150,17 @@ class ExplainModelGraph(torch.nn.Module):
     def get_masked_adj(self, weights):
         sym_mask = torch.sigmoid(self.mask)
         sym_mask = (sym_mask + sym_mask.t()) / 2
+        weights = weights.to(self.device)
+        sym_mask = sym_mask.to(self.device)
         masked_adj = weights * sym_mask
         return masked_adj
 
     def loss(self, graph : GraphInstance, pred1, pred2, gam, lam, alp):
         weights = self._rebuild_weighted_adj(graph)
-        bpr1 = torch.nn.functional.relu(gam + 0.5 - pred1)  # factual
-        bpr2 = torch.nn.functional.relu(gam + pred2 - 0.5)  # counterfactual
+        bpr1 = torch.nn.functional.relu(gam + 0.5 - pred1).to(self.device)  # factual
+        bpr2 = torch.nn.functional.relu(gam + pred2 - 0.5).to(self.device)  # counterfactual
         masked_adj = torch.flatten(self.get_masked_adj(weights))
-        L1 = torch.linalg.norm(masked_adj, ord=1)
+        L1 = torch.linalg.norm(masked_adj, ord=1).to(self.device)
         return L1 + lam * (alp * bpr1 + (1 - alp) * bpr2)
     
     

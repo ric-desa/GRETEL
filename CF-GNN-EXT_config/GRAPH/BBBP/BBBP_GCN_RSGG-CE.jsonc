@@ -1,6 +1,6 @@
 {  
     "experiment" : {
-        "scope": "GRAPH/BBBP/iRand",
+        "scope": "GRAPH/BBBP/RSGG-CE",
         "parameters" : {
             "lock_release_tout":120,
             "propagate":[
@@ -48,7 +48,26 @@
             }
         }
     ],
-    "explainers" : [{"class": "src.explainer.search.i_rand.IRandExplainer", "parameters": {"p": 0.01, "t": 3}}],
+    "explainers": [ 
+        {
+            "class": "src.explainer.generative.rsgg.RSGG",
+            "parameters": {
+              "epochs": 10,
+              "models": [
+                {
+                    "class": "src.explainer.generative.gans.graph.model.GAN",
+                    "parameters": {
+                        "batch_size": 1,
+                        "discriminator": {
+                            "class": "src.explainer.generative.gans.graph.discriminators.TopKPoolingDiscriminator",
+                            "parameters": {}
+                        }
+                    }
+                }
+            ]
+            }
+          }
+    ],
     "embedders": [
       {"class": "src.embedder.karateclub.FeatherGraph.FeatherGraphEmbedder", "parameters":{        }},
       {"class": "src.embedder.karateclub.Graph2Vec.Graph2VecEmbedder", "parameters":{        }},
@@ -57,7 +76,7 @@
       {"class": "src.embedder.karateclub.GL2Vec.GL2VecEmbedder", "parameters":{        }},
       {"class": "src.embedder.karateclub.IGE.IGEEmbedder", "parameters":{        }},
       {"class": "src.embedder.karateclub.LDP.LDPEmbedder", "parameters":{        }},
-      {"class": "src.embedder.karateclub.NetLSD.NetLSDEmbedder", "parameters":{        }},
+      // {"class": "src.embedder.karateclub.NetLSD.NetLSDEmbedder", "parameters":{        }},
       {"class": "src.embedder.karateclub.SF.SFEmbedder", "parameters":{        }},
       {"class": "src.embedder.karateclub.WaveletCharacteristic.WaveletCharacteristicEmbedder", "parameters":{        }}
     ]

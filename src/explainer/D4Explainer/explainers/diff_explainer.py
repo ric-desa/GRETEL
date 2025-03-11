@@ -104,7 +104,7 @@ def sparsity(score, groundtruth, mask, threshold=0.5):
     return ratio_average
 
 
-def gnn_pred(graph_batch, graph_batch_sub, gnn_model, ds, task):
+def gnn_pred(graph_batch, graph_batch_sub, gnn_model, ds, task, device):
     """
     Predict the labels of the graph
     :param graph_batch: graph batch
@@ -114,6 +114,9 @@ def gnn_pred(graph_batch, graph_batch_sub, gnn_model, ds, task):
     :param task: task
     :return: predicted labels (full graph and subgraph)
     """
+    graph_batch = graph_batch.to(device)
+    graph_batch_sub = graph_batch_sub.to(device)
+    gnn_model = gnn_model.to(device)
     gnn_model.eval()
     if task == "nc":
         output_prob = F.softmax(gnn_model.get_node_pred_subgraph(
@@ -238,10 +241,9 @@ class DiffExplainer(ExplainerD4, Trainable, Explainer):
 
     def init(self):
         # self.init_args()
-        # print(torch.cuda.is_available())
         self.args = dict_to_namespace(self.local_config['parameters'])
         self.model = self.oracle.model
-        ExplainerD4.init(self)
+        ExplainerD4.init(self, self.args.device)
 
     def explain_graph_task(self, train_dataset, test_dataset):
         """
@@ -324,7 +326,7 @@ class DiffExplainer(ExplainerD4, Trainable, Explainer):
                     score.append(score_batch)
                     masks.append(mask)
                 graph_batch_sub = tensor2graph(graph, score, mask)
-                y_pred, y_exp = gnn_pred(graph, graph_batch_sub, gnn_model, ds=args.dataset, task=args.task)
+                y_pred, y_exp = gnn_pred(graph, graph_batch_sub, gnn_model, ds=args.dataset, task=args.task, device=args.device)
                 full_edge_index = gen_full(graph.batch, mask)
                 score_b = torch.cat(score, dim=0).squeeze(-1).to(args.device)  # [len(sigma_list)*bsz, N, N]
                 masktens = torch.cat(masks, dim=0).to(args.device)  # [len(sigma_list)*bsz, N, N]
@@ -412,7 +414,7 @@ class DiffExplainer(ExplainerD4, Trainable, Explainer):
                             masks.append(mask)
                             score.append(score_batch)
                         graph_batch_sub = tensor2graph(graph, score, mask)
-                        y_pred, y_exp = gnn_pred(graph, graph_batch_sub, gnn_model, ds=args.dataset, task=args.task)
+                        y_pred, y_exp = gnn_pred(graph, graph_batch_sub, gnn_model, ds=args.dataset, task=args.task, device=args.device)
                         full_edge_index = gen_full(graph.batch, mask)
                         score_b = torch.cat(score, dim=0).squeeze(-1).to(args.device)
                         masktens = torch.cat(masks, dim=0).to(args.device)
@@ -589,7 +591,7 @@ class DiffExplainer(ExplainerD4, Trainable, Explainer):
         self.local_config['parameters']['train_batchsize'] = self.local_config['parameters'].get('train_batchsize', 32)
         self.local_config['parameters']['test_batchsize'] = self.local_config['parameters'].get('test_batchsize', 32)
         self.local_config['parameters']['sigma_length'] = self.local_config['parameters'].get('sigma_length', 10)
-        self.local_config['parameters']['epoch'] = self.local_config['parameters'].get('epoch', 10)
+        self.local_config['parameters']['epoch'] = self.local_config['parameters'].get('epoch', 50)
         self.local_config['parameters']['feature_in'] = self.local_config['parameters'].get('feature_in', len(self.dataset.node_features_map))
         self.local_config['parameters']['data_size'] = self.local_config['parameters'].get('data_size', -1)
         self.local_config['parameters']['threshold'] = self.local_config['parameters'].get('threshold', 0.5)
@@ -604,12 +606,12 @@ class DiffExplainer(ExplainerD4, Trainable, Explainer):
         self.local_config['parameters']['normalization'] = self.local_config['parameters'].get('normalization', 'instance')
         self.local_config['parameters']['num_layers'] = self.local_config['parameters'].get('num_layers', 6)
         self.local_config['parameters']['layers_per_conv'] = self.local_config['parameters'].get('layers_per_conv', 1)
-        self.local_config['parameters']['n_hidden'] =  self.local_config['parameters'].get('n_hidden', 3)
+        self.local_config['parameters']['n_hidden'] =  self.local_config['parameters'].get('n_hidden', 2)
         self.local_config['parameters']['cat_output'] = self.local_config['parameters'].get('cat_output', True)
         self.local_config['parameters']['residual'] = self.local_config['parameters'].get('residual', False)
         self.local_config['parameters']['noise_mlp'] = self.local_config['parameters'].get('noise_mlp', True)
         self.local_config['parameters']['simplified'] = self.local_config['parameters'].get('simplified', False)
-        self.local_config['parameters']['device'] = self.local_config['parameters'].get('device', 'cuda' if torch.cuda.is_available() else 'cpu')
+        self.local_config['parameters']['device'] = self.local_config['parameters'].get('device', 'cuda' if torch.cuda.is_available() and False else 'cpu')
         self.local_config['parameters']['n_nodes'] = self.local_config['parameters'].get('n_nodes', np.max(self.dataset.num_nodes_values))
         self.local_config['parameters']['noise_list'] = self.local_config['parameters'].get('noise_list', None)
     

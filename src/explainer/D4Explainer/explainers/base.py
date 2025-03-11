@@ -19,10 +19,13 @@ EPS = 1e-6
 
 
 class ExplainerD4(object):
-    def init(self, task="gc"):
+    def init(self, device="cpu", task="gc"):
+        self.device = device
         # self.model = torch.load(gnn_model_path, map_location=self.device, weights_only=False).to(self.device)
+        self.model.eval()
         self.model_name = self.model.__class__.__name__
         self.nameD4 = self.__class__.__name__
+        
         # self.path = gnn_model_path
         self.last_result = None
         self.vis_dict = None

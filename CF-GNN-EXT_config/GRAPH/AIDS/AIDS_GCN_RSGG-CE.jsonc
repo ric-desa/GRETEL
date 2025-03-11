@@ -1,10 +1,10 @@
 {  
     "experiment": {
-        "scope": "GRAPH/AIDS/CFGNNE-EXT+",
+        "scope": "GRAPH/AIDS/RSGG-CE",
         "parameters": {
             "lock_release_tout":120,
             "propagate":[
-                {"in_sections" : ["explainers"], "params": {"fold_id":-1}},
+                {"in_sections" : ["explainers"], "params": {"fold_id":1}},
                 {"in_sections" : ["do-pairs/oracle"], "params": {"fold_id": -1}},
                 {"in_sections": ["do-pairs/dataset"],"params": 
                     { "manipulators" : [
@@ -53,23 +53,25 @@
             }   
         }
     } ],
-    "explainers": [ 
-        {
-            "class": "src.explainer.generative.cfgnn.CFGNNExplainer_Ext",
-            "parameters": {
-                "learning_rate": 0.1,
-                "K": 50,
-                "beta": 0.5,
-                "extended": true,
-                "gamma_edge": 0,
-                "update_node_feat": true,
-                "change_node_feat": false,
-                "gamma_node_feat": 0, 
-                "visualize": false
+    "explainers": [{
+        "class": "src.explainer.generative.rsgg.RSGG",
+        "parameters": {
+          "epochs": 10,
+          "models": [
+            {
+                "class": "src.explainer.generative.gans.graph.model.GAN",
+                "parameters": {
+                    "batch_size": 1,
+                    "discriminator": {
+                        "class": "src.explainer.generative.gans.graph.discriminators.TopKPoolingDiscriminator",
+                        "parameters": {}
+                    }
+                }
             }
+        ]
         }
-     ],
-    "compose_mes" : "config/snippets/default_metrics_w_dumper.json",
+      }],
+    "compose_mes" : "config/snippets/default_metrics.json",
     "compose_strs" : "config/snippets/default_store_paths.json",
     "embedders": [
         {"class": "src.embedder.karateclub.FeatherGraph.FeatherGraphEmbedder", "parameters":{        }},
@@ -79,7 +81,7 @@
         {"class": "src.embedder.karateclub.GL2Vec.GL2VecEmbedder", "parameters":{        }},
         {"class": "src.embedder.karateclub.IGE.IGEEmbedder", "parameters":{        }},
         {"class": "src.embedder.karateclub.LDP.LDPEmbedder", "parameters":{        }},
-        {"class": "src.embedder.karateclub.NetLSD.NetLSDEmbedder", "parameters":{        }},
+        // {"class": "src.embedder.karateclub.NetLSD.NetLSDEmbedder", "parameters":{        }},
         {"class": "src.embedder.karateclub.SF.SFEmbedder", "parameters":{        }},
         {"class": "src.embedder.karateclub.WaveletCharacteristic.WaveletCharacteristicEmbedder", "parameters":{        }}
     ]

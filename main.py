@@ -20,7 +20,7 @@ from src.utils.context import Context
 import sys
 
 try:
-    from dotenv import load_dotenv
+    from dotenv import load_dotenv # type: ignore
 
     load_dotenv()
 except Exception:

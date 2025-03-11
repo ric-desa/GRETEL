@@ -1,6 +1,6 @@
 {  
     "experiment": {
-        "scope": "GRAPH/AIDS/CFGNNE-EXT",
+        "scope": "GRAPH/AIDS/CFGNNE",
         "parameters": {
             "lock_release_tout":120,
             "propagate":[
@@ -31,7 +31,7 @@
         "oracle": {
             "class": "src.oracle.nn.torch.OracleTorch",
             "parameters": {
-                "epochs": 50,
+                "epochs": 500,
                 "batch_size": 32,
                 "early_stopping_threshold":1e-4,
                 "optimizer": {
@@ -55,21 +55,16 @@
     } ],
     "explainers": [ 
         {
-            "class": "src.explainer.generative.cfgnn.CFGNNExplainer_Ext",
+            "class": "src.explainer.CF-GNNE.CFGNNExplainer_Ext",
             "parameters": {
                 "learning_rate": 0.1,
-                "K": 50,
+                "K": 500,
                 "beta": 0.5,
-                "extended": true,
-                "gamma_edge": 0,
-                "update_node_feat": false,
-                "change_node_feat": false,
-                "gamma_node_feat": 0, 
-                "visualize": false
+                "extended": false
             }
         }
      ],
-    "compose_mes" : "config/snippets/default_metrics_w_dumper.json",
+    "compose_mes" : "config/snippets/default_metrics.json",
     "compose_strs" : "config/snippets/default_store_paths.json",
     "embedders": [
         {"class": "src.embedder.karateclub.FeatherGraph.FeatherGraphEmbedder", "parameters":{        }},
@@ -79,7 +74,7 @@
         {"class": "src.embedder.karateclub.GL2Vec.GL2VecEmbedder", "parameters":{        }},
         {"class": "src.embedder.karateclub.IGE.IGEEmbedder", "parameters":{        }},
         {"class": "src.embedder.karateclub.LDP.LDPEmbedder", "parameters":{        }},
-        {"class": "src.embedder.karateclub.NetLSD.NetLSDEmbedder", "parameters":{        }},
+        // {"class": "src.embedder.karateclub.NetLSD.NetLSDEmbedder", "parameters":{        }},
         {"class": "src.embedder.karateclub.SF.SFEmbedder", "parameters":{        }},
         {"class": "src.embedder.karateclub.WaveletCharacteristic.WaveletCharacteristicEmbedder", "parameters":{        }}
     ]

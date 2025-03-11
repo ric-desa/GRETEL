@@ -54,7 +54,7 @@
         }
     } ],
     "explainers": [ 
-        {"class": "src.explainer.generative.cfgnn.CFGNNExplainer_Ext",
+        {"class": "src.explainer.CF-GNNE.CFGNNExplainer_Ext",
           "parameters": {
             "alpha": 0.1, 
             "K": 500, 

@@ -30,7 +30,7 @@
         "oracle": {
             "class": "src.oracle.nn.torch.OracleTorch",
             "parameters": {
-                "epochs": 500,
+                "epochs": 300,
                 "batch_size": 32,
                 "early_stopping_threshold":1e-4,
                 "optimizer": {

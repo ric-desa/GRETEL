@@ -6,5 +6,6 @@
     {"name": "sparsity", "parameters": {}},
     {"name": "fidelity", "parameters": {}},
     {"name": "oracle_accuracy", "parameters": {}},
+    {"name": "cosine_similarity", "parameters": {}},
     {"name": "dumper", "parameters": {"store_path": "output/counterfactuals/"}}
 ]}

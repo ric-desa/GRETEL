@@ -29,6 +29,7 @@ class PositiveAndNegativeEdgeSampler(Sampler):
         # if I have any edges in the original instance
         if edge_list.size:
             pred_label = oracle.predict(instance)
+            if type(pred_label) == torch.Tensor: pred_label = pred_label.item()
             edge_probs = edge_probs.get(pred_label)
             node_features = embedded_features.get(pred_label).cpu().numpy()
             

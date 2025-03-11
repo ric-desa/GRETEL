@@ -1,6 +1,6 @@
 {  
     "experiment" : {
-        "scope": "GRAPH/BBBP/D4Explainer",
+        "scope": "GRAPH/BBBP/MEG",
         "parameters" : {
             "lock_release_tout":120,
             "propagate":[
@@ -48,11 +48,19 @@
             }
         }
     ],
-    "explainers": [ 
+    "explainers": [
         {
-            "class": "src.explainer.D4Explainer.explainers.diff_explainer.DiffExplainer",
+            "class": "src.explainer.rl.meg.MEGExplainer",
             "parameters": {
-                "task": "gc"
+                "num_input": 3989,
+                "env": {
+                    "class": "src.explainer.rl.meg_utils.environments.basic_policies.AddRemoveEdgesEnvironment",
+                    "parameters": {}
+                },
+                "action_encoder": {                    
+                    "class": "src.explainer.rl.meg_utils.utils.encoders.IDActionEncoder",
+                    "parameters": {}
+                }
             }
         }
     ],
@@ -64,7 +72,7 @@
       {"class": "src.embedder.karateclub.GL2Vec.GL2VecEmbedder", "parameters":{        }},
       {"class": "src.embedder.karateclub.IGE.IGEEmbedder", "parameters":{        }},
       {"class": "src.embedder.karateclub.LDP.LDPEmbedder", "parameters":{        }},
-      {"class": "src.embedder.karateclub.NetLSD.NetLSDEmbedder", "parameters":{        }},
+      // {"class": "src.embedder.karateclub.NetLSD.NetLSDEmbedder", "parameters":{        }},
       {"class": "src.embedder.karateclub.SF.SFEmbedder", "parameters":{        }},
       {"class": "src.embedder.karateclub.WaveletCharacteristic.WaveletCharacteristicEmbedder", "parameters":{        }}
     ]

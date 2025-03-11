@@ -30,7 +30,7 @@
         "oracle": {
             "class": "src.oracle.nn.torch.OracleTorch",
             "parameters": {
-                "epochs": 500,
+                "epochs": 300,
                 "batch_size": 32,
                 "early_stopping_threshold":1e-4,
                 "optimizer": {
@@ -53,13 +53,13 @@
         }
     } ],
     "explainers": [
-        {"class": "src.explainer.generative.cfgnn.CFGNNExplainer_Ext",
+        {"class": "src.explainer.CF-GNNE.CFGNNExplainer_Ext",
           "parameters": {
             "alpha": 0.1, 
-            "K": 500, 
+            "K": 50, 
             "beta": 0.5, 
             "extended": true,            
-            "gamma_edge": 0.01,
+            "gamma_edge": 0,
             "update_node_feat": true,
             "change_node_feat": false,
             "gamma_node_feat": 0.01

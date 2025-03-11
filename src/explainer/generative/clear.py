@@ -57,7 +57,10 @@ class CLEARExplainer(Trainable, Explainer):
 
         self._logger = GLogger.getLogger()
         
-    def explain(self, instance):        
+    def explain(self, instance):
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        # Ensure the model is on the same device
+        self.model.to(device)
         self.model.eval()
         
         with torch.no_grad():
@@ -75,6 +78,11 @@ class CLEARExplainer(Trainable, Explainer):
             adj = torch.from_numpy(new_instance.data).float().to(self.device)[None,:,:]
             causality = torch.from_numpy(np.array(new_instance.graph_features[self.dataset.graph_features_map["graph_causality"]])).float().to(self.device)[None,:]
             labels = torch.from_numpy(np.array([new_instance.label])).to(self.device)[None,:]
+            # Move tensors to the same device
+            features = features.to(device)
+            causality = causality.to(device)
+            adj = adj.to(device)
+            labels = labels.to(device)
             
             model_return = self.model(features, causality, adj, labels)
             adj_reconst, features_reconst = model_return['adj_reconst'], model_return['features_reconst']
