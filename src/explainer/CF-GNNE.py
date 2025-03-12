@@ -391,7 +391,7 @@ class CFGNNExplainer_Ext(Explainer):
         """
         # 1. Prediction loss: L_pred
         # Get the original prediction and counterfactual prediction
-        if isinstance(self.loss_fn, torch.nn.CrossEntropyLoss): # Single-label classification
+        if isinstance(self.loss_fn, torch.nn.CrossEntropyLoss): # Single-label classification (single-class/multi-class)
             inputs = self.g_v_logits
             targets = self.f_v
         elif isinstance(self.loss_fn, torch.nn.BCEWithLogitsLoss): # Multi-label classification

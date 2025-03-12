@@ -123,9 +123,14 @@ class Evaluator(ABC):
 
             for metric in self._evaluation_metrics:
                 if(metric._special):
-                    val, counterfactual = metric.evaluate(inst, None, self._oracle,self._explainer,self._data)
-                    self._results[Context.get_fullname(metric)].append({"id":str(inst.id),"value":val})
-                    self._explanations.append(counterfactual)
+                    if "EmbedDataset" in metric.__class__.__name__:
+                        counterfactual = None
+                        ori_emb, ori_label, cf_emb, cf_label = metric.evaluate(inst, None, self._oracle,self._explainer,self._data, self.embedders)
+                        self._results[Context.get_fullname(metric)].append({"id":str(inst.id),"ori_emb":ori_emb, "ori_label":ori_label, "cf_emb":cf_emb, "cf_label":cf_label})
+                    else:
+                        val, counterfactual = metric.evaluate(inst, None, self._oracle,self._explainer,self._data)
+                        self._results[Context.get_fullname(metric)].append({"id":str(inst.id),"value":val})
+                        self._explanations.append(counterfactual)
     
             self._real_evaluate(inst, counterfactual,self._oracle,self._explainer,self._data)
             self._logger.info('evaluated instance with id %s', str(inst.id))

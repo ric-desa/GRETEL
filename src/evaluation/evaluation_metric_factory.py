@@ -20,6 +20,7 @@ from src.evaluation.evaluation_metric_cosine_similarity import CosineSimilarityM
 from src.evaluation.evaluation_metric_cosine_similarity_nodes import CosineSimilarityNodesMetric
 from src.evaluation.evaluation_metric_smiles_levenshtein import SmilesLevenshteinMetric
 from src.evaluation.evaluation_metric_dumper import InstancesDumper
+from src.evaluation.evaluation_metric_embed_dataset import EmbedDatasetMetric
 
 
 
@@ -95,6 +96,9 @@ class EvaluationMetricFactory:
         
         elif metric_name == 'runtime_nodes':
             return self.get_runtime_nodes_metric(config_dict=metric_dict)
+        
+        elif metric_name == 'embed_dataset':
+            return self.get_embed_dataset_metric(config_dict=metric_dict)
 
         else:
             raise ValueError('''The provided evaluation metric name does not match any evaluation
@@ -193,5 +197,9 @@ class EvaluationMetricFactory:
     
     def get_cosine_similarity_nodes_metric(self, config_dict=None) -> EvaluationMetric:
         result = CosineSimilarityNodesMetric(config_dict)
+        return result
+    
+    def get_embed_dataset_metric(self, config_dict=None) -> EvaluationMetric:
+        result = EmbedDatasetMetric(config_dict)
         return result
 

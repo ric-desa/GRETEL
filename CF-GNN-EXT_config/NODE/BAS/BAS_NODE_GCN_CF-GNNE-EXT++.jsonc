@@ -54,7 +54,7 @@
       {"class": "src.explainer.CF-GNNE.CFGNNExplainer_Ext",
       "parameters": {
         "alpha": 0.1,
-        "K": 500,
+        "K": 50,
         "beta": 0.5,
         "extended": true,
         "gamma_edge": 0.01,

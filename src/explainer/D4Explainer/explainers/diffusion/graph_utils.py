@@ -112,10 +112,11 @@ def graph2tensor(graph, device):
     # edge_index = torch.from_numpy(np.array(graph.edge_index)).squeeze(0)  # [2, E_total]
     edge_index = graph.edge_index
     # print(bsz, edge_index.shape)
+    if isinstance(edge_index[0][0], np.ndarray): edge_index = torch.tensor(np.stack(edge_index[0], axis=0), dtype=torch.long)
     adj = to_dense_adj(edge_index, batch=graph.batch)  # [bsz, max_num_node, max_num_node]
     max_num_node = adj.size(-1)
     # node_features = torch.from_numpy(np.array(graph.x)).squeeze(0).to(device)  # [N_total, C]
-    node_features = graph.x
+    node_features = torch.tensor(np.array(graph.x)).squeeze(0) if not isinstance(graph.x, torch.Tensor) else graph.x
     # print(node_features.shape)
     feature_dim = node_features.size(-1)
     node_sizes = degree(graph.batch, dtype=torch.long).tolist()
