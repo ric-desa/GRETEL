@@ -240,7 +240,7 @@ class DiffExplainer(ExplainerD4, Trainable, Explainer):
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     def init(self):
-        # self.init_args()
+        # self.init_args()        
         self.args = dict_to_namespace(self.local_config['parameters'])
         self.model = self.oracle.model
         ExplainerD4.init(self, self.args.device)
@@ -538,7 +538,13 @@ class DiffExplainer(ExplainerD4, Trainable, Explainer):
         y_ori = graph.y if args.task == "gc" else graph.self_y
         y_exp = output_prob_cont.argmax(dim=-1)
 
-        final_graph = Batch.to_data_list(graph_batch_sub)[0]
+        # final_graph = Batch.to_data_list(graph_batch_sub)[0]
+
+        if graph_batch_sub.edge_index.numel() == 0:
+            # Create an empty Data object with the same node features
+            final_graph = Data(x=graph_batch_sub.x[0], edge_index=torch.empty((2, 0), dtype=torch.long))
+        else:
+            final_graph = Batch.to_data_list(graph_batch_sub)[0]
 
         adjacency = np.zeros((final_graph.x.shape[0], final_graph.x.shape[0]))
         indices = final_graph.edge_index.cpu().numpy()
@@ -591,7 +597,7 @@ class DiffExplainer(ExplainerD4, Trainable, Explainer):
         self.local_config['parameters']['train_batchsize'] = self.local_config['parameters'].get('train_batchsize', 32)
         self.local_config['parameters']['test_batchsize'] = self.local_config['parameters'].get('test_batchsize', 32)
         self.local_config['parameters']['sigma_length'] = self.local_config['parameters'].get('sigma_length', 10)
-        self.local_config['parameters']['epoch'] = self.local_config['parameters'].get('epoch', 50)
+        self.local_config['parameters']['epoch'] = self.local_config['parameters'].get('epoch', 10)
         self.local_config['parameters']['feature_in'] = self.local_config['parameters'].get('feature_in', len(self.dataset.node_features_map))
         self.local_config['parameters']['data_size'] = self.local_config['parameters'].get('data_size', -1)
         self.local_config['parameters']['threshold'] = self.local_config['parameters'].get('threshold', 0.5)
@@ -611,7 +617,7 @@ class DiffExplainer(ExplainerD4, Trainable, Explainer):
         self.local_config['parameters']['residual'] = self.local_config['parameters'].get('residual', False)
         self.local_config['parameters']['noise_mlp'] = self.local_config['parameters'].get('noise_mlp', True)
         self.local_config['parameters']['simplified'] = self.local_config['parameters'].get('simplified', False)
-        self.local_config['parameters']['device'] = self.local_config['parameters'].get('device', 'cuda' if torch.cuda.is_available() else 'cpu')
+        self.local_config['parameters']['device'] = self.local_config['parameters'].get('device', 'cpu')# 'cuda' if torch.cuda.is_available() else 'cpu')
         self.local_config['parameters']['n_nodes'] = self.local_config['parameters'].get('n_nodes', np.max(self.dataset.num_nodes_values))
         self.local_config['parameters']['noise_list'] = self.local_config['parameters'].get('noise_list', None)
     

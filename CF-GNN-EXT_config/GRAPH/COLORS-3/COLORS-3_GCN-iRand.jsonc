@@ -1,6 +1,6 @@
 {  
     "experiment": {
-        "scope": "GRAPH/COLORS/iRand",
+        "scope": "GRAPH/COLORS-3/iRand",
         "parameters": {
             "lock_release_tout":120,
             "propagate":[

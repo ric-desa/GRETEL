@@ -76,7 +76,15 @@ class CLEARExplainer(Trainable, Explainer):
             # get the features, adj matrix, graph causality and label
             features = torch.from_numpy(np.array(new_instance.node_features)).float().to(self.device)[None,:,:]
             adj = torch.from_numpy(new_instance.data).float().to(self.device)[None,:,:]
-            causality = torch.from_numpy(np.array(new_instance.graph_features[self.dataset.graph_features_map["graph_causality"]])).float().to(self.device)[None,:]
+            # causality = torch.from_numpy(np.array(new_instance.graph_features[self.dataset.graph_features_map["graph_causality"]])).float().to(self.device)[None,:]
+            
+            graph_features_map = instance._dataset.graph_features_map
+            if "graph_causality" in graph_features_map:
+                causality = torch.from_numpy(np.array(new_instance.graph_features[self.dataset.graph_features_map["graph_causality"]])).float().to(self.device)[None,:]
+            else:
+                # print("Warning: 'graph_causality' not found in graph_features_map. Using default value.")
+                causality = torch.zeros((1, 1)).to(self.device)
+
             labels = torch.from_numpy(np.array([new_instance.label])).to(self.device)[None,:]
             # Move tensors to the same device
             features = features.to(device)
@@ -502,7 +510,14 @@ class CLEARDataset(TorchDataset):
         ##### THIS IS A PATCH. TODO: if there is more than a graph feature, it crashes, because the shape is wrong.
         ##### https://github.com/danielegrattarola/spektral/blob/master/spektral/datasets/tudataset.py#L16
 
-        causality = torch.from_numpy(np.array(instance.graph_features[instance._dataset.graph_features_map["graph_causality"]]))
+        graph_features_map = instance._dataset.graph_features_map
 
+        if "graph_causality" in graph_features_map:
+            causality = torch.from_numpy(np.array(instance.graph_features[instance._dataset.graph_features_map["graph_causality"]]))
+        else:
+            # print("Warning: 'graph_causality' not found in graph_features_map. Using default value.")
+            causality = torch.zeros(1)
+
+        # causality = torch.from_numpy(np.array(instance.graph_features[instance._dataset.graph_features_map["graph_causality"]]))
 
         return adj, x, label, causality

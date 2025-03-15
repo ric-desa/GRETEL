@@ -15,7 +15,9 @@
         {
             "class": "src.explainer.D4Explainer.explainers.diff_explainer.DiffExplainer",
             "parameters": {
-                "task": "gc"
+                "task": "gc",
+                "dataset": "TCR",
+                "epoch": 1
             }
         }
     ],

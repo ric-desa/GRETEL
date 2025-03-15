@@ -1,6 +1,6 @@
 {  
     "experiment": {
-        "scope": "GRAPH/COLORS/D4Explainer",
+        "scope": "GRAPH/COLORS-3/D4Explainer",
         "parameters": {
             "lock_release_tout":120,
             "propagate":[
@@ -56,7 +56,10 @@
         {
             "class": "src.explainer.D4Explainer.explainers.diff_explainer.DiffExplainer",
             "parameters": {
-                "task": "gc"
+                "task": "gc",
+                "epoch": 0,
+                "dataset": "COLORS-3",
+                "hidden": 0
             }
         }
     ],

@@ -44,6 +44,8 @@ class BAShapes(Generator):
             nx.set_node_attributes(house, features, "feat")
             return house
 
+        nodes_count, edges_count = 0, 0
+
         for i in range(self.num_instances):
             # Randomly determine if the graph is going to contain a motif
             has_motif = np.random.randint(0, 2)  # 2 excluded
@@ -93,9 +95,18 @@ class BAShapes(Generator):
                 plt.title(f"Graph with ID={i}, Label={label}")
                 plt.show()
             
+            graph = nx.from_numpy_array(adj_matrix)
+            # print("Nodes:", graph.number_of_nodes(), "Edges:", graph.number_of_edges())
+            nodes_count += graph.number_of_nodes()
+            edges_count += graph.number_of_edges()
             # Append the instance to the dataset
             self.dataset.instances.append(GraphInstance(id=i, data=adj_matrix, label=label, node_features=features))
             self.context.logger.info(f"Generated instance with id {i}, label={label}")
-                
+
+        nodes_avg = nodes_count / self.num_instances
+        edges_avg = edges_count / self.num_instances
+        print("Nodes avg:", nodes_avg, "Edges avg:", edges_avg)
+        #input()
+            
     def get_num_instances(self):
         return len(self.dataset.instances)

@@ -1,6 +1,6 @@
 {  
     "experiment": {
-        "scope": "GRAPH/COLORS/CFGNNE-EXT++",
+        "scope": "GRAPH/COLORS-3/CFGNNE-EXT++",
         "parameters": {
             "lock_release_tout":120,
             "propagate":[

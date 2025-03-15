@@ -1,6 +1,6 @@
 {  
     "experiment" : {
-        "scope": "GRAPH/BBBP/GNNE-Ext",
+        "scope": "GRAPH/BBBP/CF-GNNE-Ext",
         "parameters" : {
             "lock_release_tout":120,
             "propagate":[

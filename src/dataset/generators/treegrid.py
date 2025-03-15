@@ -34,10 +34,12 @@ class TreeGrid(Generator):
 
     def generate_dataset(self):
 
+        nodes_count, edges_count = 0, 0
+
         for i in range(self.num_instances):
             # Randomly determine if the graph is going to contain a TreeGrid or just a tree
             has_treegrid = np.random.randint(0, 2)  # 2 excluded
-            num_nodes = 2**self.tree_height - 1  # Number of nodes in the tree
+            num_nodes = 2**self.tree_height  # Number of nodes in the tree
             
             if has_treegrid: # Generate grid and tree
 
@@ -77,9 +79,18 @@ class TreeGrid(Generator):
                 nx.draw(draw_graph, with_labels=True, node_color=features, cmap=plt.cm.cool, edge_color='gray')
                 plt.show()
             
+            # Count nodes and edges
+            graph = nx.from_numpy_array(adj_matrix)
+            # print("Nodes:", graph.number_of_nodes(), "Edges:", graph.number_of_edges())
+            nodes_count += graph.number_of_nodes()
+            edges_count += graph.number_of_edges()
             # Append the instance to the dataset
             self.dataset.instances.append(GraphInstance(id=i, data=adj_matrix, label=label, node_features=features))
             self.context.logger.info(f"Generated instance with id {i} and label={label}")    
     
+        nodes_avg = nodes_count / self.num_instances
+        edges_avg = edges_count / self.num_instances
+        print("Nodes avg:", nodes_avg, "Edges avg:", edges_avg)
+
     def get_num_instances(self):
         return len(self.dataset.instances)

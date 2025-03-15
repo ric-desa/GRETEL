@@ -24,6 +24,8 @@ class TreeCyclesRand(Generator):
 
     def generate_dataset(self):     
                   
+        nodes_count, edges_count = 0, 0
+
         for i in range(self.num_instances):
             # Randomly determine if the graph is going to contain cycles or just be a tree
             has_cycles = np.random.randint(0,2) # 2 excluded
@@ -42,12 +44,21 @@ class TreeCyclesRand(Generator):
                 tc_graph = self._join_graphs_as_adj(nx.random_tree(n=left), cycles)                
              
                 self.dataset.instances.append(GraphInstance(id=i, data=tc_graph, label=1))
+                graph = nx.from_numpy_array(tc_graph)
             else:
                 # Generating a random tree containing all the nodes of the instance
                 t_graph = nx.random_tree(n=self.num_nodes_per_instance)
                 self.dataset.instances.append(GraphInstance(id=i, data=nx.to_numpy_array(t_graph), label=0))
+                graph = t_graph
 
+            # print("Nodes:", graph.number_of_nodes(), "Edges:", graph.number_of_edges())
+            nodes_count += graph.number_of_nodes()
+            edges_count += graph.number_of_edges()
             self.context.logger.info("Generated instance with id:"+str(i))
+        
+        nodes_avg = nodes_count / self.num_instances
+        edges_avg = edges_count / self.num_instances
+        print("Nodes avg:", nodes_avg, "Edges avg:", edges_avg)      
     
     
     
@@ -63,3 +74,10 @@ class TreeCyclesRand(Generator):
             A[s_node,t_node]=1
 
         return A
+    
+
+    def count_graph_elements(graph):
+        # If graph is an adjacency matrix, convert it to a networkx graph
+        if isinstance(graph, np.ndarray):
+            graph = nx.from_numpy_array(graph)
+        return graph.number_of_nodes(), graph.number_of_edges()

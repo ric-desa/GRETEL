@@ -230,6 +230,8 @@ class Dataset(Savable):
         indices = self.get_split_indices(fold_id)[usage]
         # If a specific class (kls) is provided, filter out instances not belonging to that class
         if kls != -1:
+            print("Available class indices:", self.class_indices().keys())
+            print("Requested class (kls):", kls)
             indices = list(set(indices).difference(set(self.class_indices()[kls])))
         # Create an instance of the specified dataset class with the given instances and additional arguments
         self._torch_repr = get_class(dataset_kls)(self.instances, **kwargs)

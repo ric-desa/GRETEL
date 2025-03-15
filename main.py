@@ -27,6 +27,7 @@ except Exception:
     pass
 
 if __name__ == "__main__":
+    torch.cuda.is_available = lambda: False
     if len(sys.argv) < 2:
         # If no arguments are passed, try to find GRETEL_CONFIG_FILE in the environment
         if "GRETEL_CONFIG_FILE" in os.environ:

@@ -128,7 +128,7 @@ class CFGNNExplainer_Ext(Explainer):
         input()"""
         """
         Find a Counterfactual for ```instance```. The closest among the ones found will be returned.
-        """        
+        """
         self.f_v = self.oracle.predict(instance).clone().detach() # Get GCN prediction
         # self.f_v = torch.tensor(self.oracle.predict(instance), dtype=torch.long) # Get GCN prediction
         self.g_v = self.f_v # CF predicted class
@@ -227,7 +227,7 @@ class CFGNNExplainer_Ext(Explainer):
 
             if self.debugging: input(f"Iteraton {_} finished | Press Enter to continue")
 
-            if self.valid_CF: break # Breaking at first CF found (Different from paper algorithm → Efficiency reason: avoiding extra loop iterations)
+            # if self.valid_CF: break # Breaking at first CF found (Different from paper algorithm → If Efficiency is preferred: avoiding extra loop iterations to find better (closer) CF))
         
         edge_indices = torch.where(self.v_bar_opt[0] != 0) # (int tensor)
         edge_weights = self.v_bar_opt[0][edge_indices] # (real tensor)

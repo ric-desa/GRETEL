@@ -1,6 +1,6 @@
 {  
     "experiment": {
-        "scope": "GRAPH/COLORS/RSGG-CE",
+        "scope": "GRAPH/COLORS-3/RSGG-CE",
         "parameters": {
             "lock_release_tout":120,
             "propagate":[
@@ -76,7 +76,7 @@
     "compose_mes" : "config/snippets/default_metrics.json",
     "compose_strs" : "config/snippets/default_store_paths.json",
     "embedders": [
-     {"class": "src.embedder.karateclub.FeatherGraph.FeatherGraphEmbedder", "parameters":{        }}
+    {"class": "src.embedder.karateclub.FeatherGraph.FeatherGraphEmbedder", "parameters":{        }}
     ,{"class": "src.embedder.karateclub.Graph2Vec.Graph2VecEmbedder", "parameters":{        }}
     ,{"class": "src.embedder.karateclub.FGSD.FGSDEmbedder", "parameters":{        }}
     // ,{"class": "src.embedder.karateclub.GeoScattering.GeoScatteringEmbedder", "parameters":{        }}
