@@ -50,7 +50,7 @@ class GraphEditDistanceNodesMetric(EvaluationMetric):
             A_g1 = instance_1.data
             A_g2 = instance_2.data
 
-            # Bardh idea ----------------------------------------------------------
+            # idea ----------------------------------------------------------
 
             # result = float(np.sum(np.absolute(A_g1 - A_g2)))
             # return result

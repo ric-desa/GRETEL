@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH -s
 #SBATCH -n 1
-#SBATCH -o /NFSHOME/mprado/AIIM/GRETEL/main2/GRETEL/output.out
+#SBATCH -o /NFSHOME/mp/AIIM/GRETEL/main2/GRETEL/output.out
 #SBATCH -J meta-ens
 #SBATCH -p isolated
 #SBATCH -c 4
