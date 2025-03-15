@@ -1,6 +1,6 @@
 {  
     "experiment" : {
-        "scope": "EMBED/TCR/CFGNNE-EXT++",
+        "scope": "EMBED/TCR/CFGNNE",
         "parameters" : {
             "lock_release_tout":120,
             "propagate":[
@@ -16,10 +16,10 @@
         "alpha": 0.1,
         "K": 500,
         "beta": 0.5,
-        "extended": true,
-        "gamma_edge": 0.01,
-        "update_node_feat": true,
-        "change_node_feat": true,
+        "extended": false,
+        "gamma_edge": 0,
+        "update_node_feat": false,
+        "change_node_feat": false,
         "gamma_node_feat": 0,
         "visualize": true}}],
     "compose_mes" : "config/snippets/embed_metrics.json", 
@@ -33,7 +33,7 @@
       //{"class": "src.embedder.karateclub.IGE.IGEEmbedder", "parameters":{        }}
       //{"class": "src.embedder.karateclub.LDP.LDPEmbedder", "parameters":{        }} //good
       //{"class": "src.embedder.karateclub.NetLSD.NetLSDEmbedder", "parameters":{        }}
-      //{"class": "src.embedder.karateclub.SF.SFEmbedder", "parameters":{        }} // good s
+      // {"class": "src.embedder.karateclub.SF.SFEmbedder", "parameters":{        }} // good s
       {"class": "src.embedder.karateclub.WaveletCharacteristic.WaveletCharacteristicEmbedder", "parameters":{        }} //good s
     ]
 }

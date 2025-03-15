@@ -10,7 +10,7 @@
             ]
         }
     },
-    "do-pairs":[{"compose_tcr_gcn" : "config/snippets/do-pairs/TCR-500-28-0.3_GCN.json"} ],
+    "do-pairs":[{"compose_tcr_gcn" : "config/snippets/do-pairs/TCR-5000-28-0.3_GCN.json"} ],
     "explainers": [ 
         {
             "class": "src.explainer.D4Explainer.explainers.diff_explainer.DiffExplainer",
@@ -22,9 +22,9 @@
     "compose_mes" : "config/snippets/embed_metrics.json", 
     "compose_strs" : "config/snippets/default_store_paths.json",
     "embedders": [
-      {"class": "src.embedder.karateclub.FeatherGraph.FeatherGraphEmbedder", "parameters":{        }}
+      //{"class": "src.embedder.karateclub.FeatherGraph.FeatherGraphEmbedder", "parameters":{        }}
       //{"class": "src.embedder.karateclub.Graph2Vec.Graph2VecEmbedder", "parameters":{        }},
-      //{"class": "src.embedder.karateclub.FGSD.FGSDEmbedder", "parameters":{        }},
+      // {"class": "src.embedder.karateclub.FGSD.FGSDEmbedder", "parameters":{        }}
       //{"class": "src.embedder.karateclub.GeoScattering.GeoScatteringEmbedder", "parameters":{        }},
       //{"class": "src.embedder.karateclub.GL2Vec.GL2VecEmbedder", "parameters":{        }},
       //{"class": "src.embedder.karateclub.IGE.IGEEmbedder", "parameters":{        }},

@@ -13,12 +13,13 @@ class OracleAccuracyNodesMetric(EvaluationMetric):
         self._name = 'Oracle_Accuracy_nodes'
 
     def evaluate(self, instance_1 , instances_2 , oracle : Oracle=None, explainer : Explainer=None, dataset = None):
-        r=[]
+        r = []
         for node_id, instance_2 in enumerate(instances_2):
             predicted_label_instance_1 = oracle.predict(instance_1)[node_id]
             oracle._call_counter -= 1
             real_label_instance_1 = instance_1.label[node_id]
 
             result = 1 if (predicted_label_instance_1 == real_label_instance_1) else 0
+            r.append(result)
         
-        return result
+        return r
