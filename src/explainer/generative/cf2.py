@@ -84,15 +84,22 @@ class CF2Explainer(Trainable, Explainer):
                 masked_adj = self.model.get_masked_adj(weighted_adj).numpy()
             else: 
                 masked_adj = self.model.get_masked_adj(weighted_adj).cpu().numpy()
-                
+            full_masked = self.model.get_masked_adj(weighted_adj).cpu().numpy() # (shape: self.n_nodes × self.n_nodes)
+            
+            orig_n = instance.num_nodes
+            sliced = full_masked[:orig_n, :orig_n]
+
             # update instance copy from masked_ajd
             # cf_instance.data = masked_adj        
 
-            new_adj = np.where(masked_adj != 0, 1, 0)
-            # the weights need to be an array of real numbers with
-            # length equal to the number of edges
-            row_indices, col_indices = np.where(masked_adj != 0)
-            weights = masked_adj[row_indices, col_indices]
+            # new_adj = np.where(masked_adj != 0, 1, 0)
+            # # the weights need to be an array of real numbers with
+            # # length equal to the number of edges
+            # row_indices, col_indices = np.where(masked_adj != 0)
+            # weights = masked_adj[row_indices, col_indices]
+            new_adj = (sliced != 0).astype(int)
+            rows, cols = np.nonzero(sliced)
+            weights = sliced[rows, cols]
 
             cf_instance.data = new_adj
             cf_instance.edge_weights = weights

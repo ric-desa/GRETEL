@@ -22,6 +22,7 @@ class GraphInstance(DataInstance):
         num_nodes = self.data.shape[0]
         num_edges = np.count_nonzero(self.data)
         # if len(self.edge_features) != num_edges: print("graph.py: ", len(self.edge_features), num_edges)
+        if len(self.node_features) != num_nodes: print("graph.py: ", len(self.node_features), num_nodes)
         assert len(self.node_features) == num_nodes
         assert len(self.edge_features) == num_edges
         assert len(self.edge_weights) == num_edges
@@ -73,15 +74,26 @@ class GraphInstance(DataInstance):
         return np.ones(len(edges[0])) if edge_weights is None else edge_weights
     
     def _build_nx(self):
+        # print(f"len(self.data): {len(self.data)}, self.is_directed: {self.is_directed}")
         if self.is_directed:
             nx_repr = nx.from_numpy_array(self.data, create_using=nx.DiGraph)
         else:
             nx_repr = nx.from_numpy_array(self.data, create_using=nx.Graph)
 
+        # print(f"len(self.node_features), len(nx_repr): {len(self.node_features)}, {len(nx_repr)}")
         nx_repr.add_nodes_from([node, {'node_features': self.node_features[node]}] for node in nx_repr.nodes())
         edges = list(nx_repr.edges)
         nx_repr.add_edges_from([(edge[0], edge[1], {'edge_features': self.edge_features[i], 'weight': self.edge_weights[i]}) for i, edge in enumerate(edges)])
         return nx_repr
+    # def _build_nx(self):
+    #     if self.is_directed:
+    #         nx_repr = nx.from_numpy_array(self.data, create_using=nx.DiGraph)
+    #     else:
+    #         nx_repr = nx.from_numpy_array(self.data, create_using=nx.Graph)
+    #     # ensure node_features aligns
+    #     for i in nx_repr.nodes():
+    #         nx_repr.nodes[i]['node_features'] = self.node_features[i]
+    #     return nx_repr
     
     @property
     def num_edges(self):

@@ -50,15 +50,15 @@
     ],
     "explainers": [{"class": "src.explainer.generative.cf2.CF2Explainer","parameters":{"epochs": 20, "batch_size_ratio": 0.2, "lr" : 0.02, "alpha" : 0.7, "lam" : 20, "gamma" : 0.9}}],
     "embedders": [
-      // {"class": "src.embedder.karateclub.FeatherGraph.FeatherGraphEmbedder", "parameters":{        }},
-      // {"class": "src.embedder.karateclub.Graph2Vec.Graph2VecEmbedder", "parameters":{        }},
-      // {"class": "src.embedder.karateclub.FGSD.FGSDEmbedder", "parameters":{        }},
-      // {"class": "src.embedder.karateclub.GeoScattering.GeoScatteringEmbedder", "parameters":{        }},
-      // {"class": "src.embedder.karateclub.GL2Vec.GL2VecEmbedder", "parameters":{        }},
-      // {"class": "src.embedder.karateclub.IGE.IGEEmbedder", "parameters":{        }},
-      // {"class": "src.embedder.karateclub.LDP.LDPEmbedder", "parameters":{        }},
-      // {"class": "src.embedder.karateclub.NetLSD.NetLSDEmbedder", "parameters":{        }},
-      // {"class": "src.embedder.karateclub.SF.SFEmbedder", "parameters":{        }},
-      // {"class": "src.embedder.karateclub.WaveletCharacteristic.WaveletCharacteristicEmbedder", "parameters":{        }}
+      {"class": "src.embedder.karateclub.FeatherGraph.FeatherGraphEmbedder", "parameters":{        }},
+      {"class": "src.embedder.karateclub.Graph2Vec.Graph2VecEmbedder", "parameters":{        }},
+      {"class": "src.embedder.karateclub.FGSD.FGSDEmbedder", "parameters":{        }},
+      {"class": "src.embedder.karateclub.GeoScattering.GeoScatteringEmbedder", "parameters":{        }},
+      {"class": "src.embedder.karateclub.GL2Vec.GL2VecEmbedder", "parameters":{        }},
+      {"class": "src.embedder.karateclub.IGE.IGEEmbedder", "parameters":{        }},
+      {"class": "src.embedder.karateclub.LDP.LDPEmbedder", "parameters":{        }},
+      {"class": "src.embedder.karateclub.NetLSD.NetLSDEmbedder", "parameters":{        }},
+      {"class": "src.embedder.karateclub.SF.SFEmbedder", "parameters":{        }},
+      {"class": "src.embedder.karateclub.WaveletCharacteristic.WaveletCharacteristicEmbedder", "parameters":{        }}
     ]
 }

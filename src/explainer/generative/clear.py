@@ -38,6 +38,7 @@ class CLEARExplainer(Trainable, Explainer):
         self.beta_x = self.local_config['parameters']['beta_x']
         self.beta_adj = self.local_config['parameters']['beta_adj']
         self.n_nodes = self.local_config['parameters']['n_nodes']
+        self.multiclass = self.local_config['parameters']['multiclass']
 
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -90,7 +91,7 @@ class CLEARExplainer(Trainable, Explainer):
             features = features.to(device)
             causality = causality.to(device)
             adj = adj.to(device)
-            labels = labels.to(device)
+            labels = labels.to(device).float()
             
             model_return = self.model(features, causality, adj, labels)
             adj_reconst, features_reconst = model_return['adj_reconst'], model_return['features_reconst']
@@ -122,7 +123,10 @@ class CLEARExplainer(Trainable, Explainer):
                 features = features.float().to(self.device)
                 causality = causality.float().to(self.device)
                 adj = adj.float().to(self.device)
-                labels = (1 - labels.float()).to(self.device)[:,None]
+                if self.multiclass:
+                    labels = labels.float().to(self.device)[:,None] # Multi-class classification
+                else:
+                    labels = (1 - labels.float()).to(self.device)[:,None]
                 ########################################################
                 self.optimizer.zero_grad()
                 # forward pass
@@ -193,6 +197,8 @@ class CLEARExplainer(Trainable, Explainer):
             y_pred.append(np.array(oracle.predict_proba(temp_instance)))
 
         y_pred = torch.from_numpy(np.array(y_pred)).float().squeeze()
+        # print(f"y_pred.shape: {y_pred.shape} | y_cf.shape: {y_cf.shape}")
+        # print(f"y_pred[0]: {y_pred[0]} |\ny_cf: {-y_cf.to("cpu").view(-1).long()}")        # print(F.one_hot(y_cf.to("cpu").view(-1).long(), 10))        
         loss_cfe = F.nll_loss(F.log_softmax(y_pred, dim=-1), y_cf.to("cpu").view(-1).long())
         
         # rep loss
@@ -234,6 +240,7 @@ class CLEARExplainer(Trainable, Explainer):
         self.local_config['parameters']['lambda_cfe'] =  self.local_config['parameters'].get('lambda_cfe', 1)
         self.local_config['parameters']['beta_x'] =  self.local_config['parameters'].get('beta_x', 10)
         self.local_config['parameters']['beta_adj'] =  self.local_config['parameters'].get('beta_adj', 10)
+        self.local_config['parameters']['multiclass'] = self.local_config['parameters'].get('multiclass', False)
 
         self.local_config['parameters']['n_nodes'] = np.max(self.dataset.num_nodes_values)
 

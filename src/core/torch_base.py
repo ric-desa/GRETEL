@@ -48,11 +48,13 @@ class TorchBase(Trainable):
         
         if self.early_stopping_threshold:
             num_instances = len(self.dataset.instances)
+            # print(f'num_instances: {num_instances}')
             # get 5% of training instances and reserve them for validation
             indices = list(range(num_instances))
             random.shuffle(indices)
             val_size = max(int(.05 * len(indices)), self.batch_size)
             train_size = len(indices) - val_size
+            # print(f'val_size, train_size: {val_size, train_size}')
             # get the training instances
             train_instances = Subset(instances, indices[:train_size - 1])
             val_instances = Subset(instances, indices[train_size:])
@@ -77,6 +79,9 @@ class TorchBase(Trainable):
                 self.optimizer.zero_grad()
                 
                 pred = self.model(node_features, edge_index, edge_weights, batch.batch)
+                # print(f'pred.shape, labels.shape: {pred.shape, labels.shape}')
+                if pred.shape[1] > 2:
+                    labels = torch.nn.functional.one_hot(labels, num_classes=pred.shape[1]).float()                  
                 loss = self.loss_fn(pred, labels)
                 losses.append(loss.to('cpu').detach().numpy())
                 loss.backward()
@@ -103,6 +108,8 @@ class TorchBase(Trainable):
                         labels = batch.y.to(self.device).long()
 
                         pred = self.model(node_features, edge_index, edge_weights, batch.batch)
+                        if pred.shape[1] > 2:
+                            labels = torch.nn.functional.one_hot(labels, num_classes=pred.shape[1]).float()
                         loss = self.loss_fn(pred, labels)
                         
                         var_labels += list(labels.squeeze().to('cpu').numpy())
@@ -115,7 +122,7 @@ class TorchBase(Trainable):
                     best_loss.append(var_loss)
                             
                     accuracy = self.accuracy(var_labels, var_preds)
-                    self.context.logger.info(f'epoch = {epoch} ---> var_loss = {var_loss:.4f}\t var_accuracy = {accuracy:.4f}')
+                    self.context.logger.info(f'epoch = {epoch} ---> valid_loss = {var_loss:.4f}\t valid_accuracy = {accuracy:.4f}')
                 
                 if abs(best_loss[0] - best_loss[1]) < self.early_stopping_threshold:
                     self.patience += 1
@@ -136,7 +143,17 @@ class TorchBase(Trainable):
         init_dflts_to_of(local_config, 'loss_fn', 'torch.nn.BCELoss')
         
     def accuracy(self, testy, probs):
-        acc = accuracy_score(testy, np.argmax(probs, axis=1))
+        # print(testy[:10], probs[:10])
+        # testy_idx = np.argmax(testy, axis=1)
+        # probs_idx = np.argmax(probs, axis=1)
+        # print(testy_idx[:1], probs_idx[:1])
+        # print(len(testy))
+
+        if len(probs[0]) > 2:
+            # print(np.argmax(testy, axis=1), np.argmax(testy, axis=1)-1, np.argmax(probs, axis=1))
+            acc = accuracy_score(np.argmax(testy, axis=1), np.argmax(probs, axis=1))
+        else:
+            acc = accuracy_score(testy, np.argmax(probs, axis=1))
         return acc
 
     def read(self):

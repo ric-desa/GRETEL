@@ -17,7 +17,7 @@
             "parameters": {
                 "task": "gc",
                 "dataset": "TCR",
-                "epoch": 1
+                "epoch": 10
             }
         }
     ],

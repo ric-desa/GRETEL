@@ -2,6 +2,7 @@ from karateclub import FGSD
 from src.core.embedder_base import Embedder
 import numpy 
 from scipy import integrate
+import networkx as nx
 
 class FGSDEmbedder(Embedder):
     def init(self):
@@ -10,6 +11,7 @@ class FGSDEmbedder(Embedder):
 
     def real_fit(self):
         graph_list = [graph_instance.get_nx() for graph_instance in self.dataset.instances]
+        graph_list = [G if G.number_of_nodes() > 0 else nx.empty_graph(1) for G in graph_list]
         self.model.fit(graphs=graph_list)
         self.embedding = self.model.get_embedding()
 

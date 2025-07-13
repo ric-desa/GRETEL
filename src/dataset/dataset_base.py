@@ -229,7 +229,8 @@ class Dataset(Savable):
         # Retrieve the indices for the specified fold and usage
         indices = self.get_split_indices(fold_id)[usage]
         # If a specific class (kls) is provided, filter out instances not belonging to that class
-        if kls != -1:
+        # if kls != -1:
+        if kls > -1:
             print("Available class indices:", self.class_indices().keys())
             print("Requested class (kls):", kls)
             indices = list(set(indices).difference(set(self.class_indices()[kls])))

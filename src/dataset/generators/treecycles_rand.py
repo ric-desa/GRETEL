@@ -31,24 +31,35 @@ class TreeCyclesRand(Generator):
             has_cycles = np.random.randint(0,2) # 2 excluded
             # If the graph will contain cycles
             if(has_cycles):
-                cycles = []
-                budget = int( self.ratio_nodes_in_cycles * self.num_nodes_per_instance )
-                left = self.num_nodes_per_instance - budget
-                            
-                while budget > 2: 
-                    num_nodes = np.random.randint(3,budget+1)
-                    cycles.append(nx.cycle_graph(num_nodes))
-                    budget -= num_nodes
-                
-                left += budget
-                tc_graph = self._join_graphs_as_adj(nx.random_tree(n=left), cycles)                
-             
-                self.dataset.instances.append(GraphInstance(id=i, data=tc_graph, label=1))
+                full = False or np.random.randint(0,2) # 2 excluded
+                if full:
+                    tc_graph = nx.to_numpy_array(nx.complete_graph(self.num_nodes_per_instance))
+                else:
+                    cycles = []
+                    budget = int( self.ratio_nodes_in_cycles * self.num_nodes_per_instance )
+                    left = self.num_nodes_per_instance - budget
+                                
+                    while budget > 2: 
+                        num_nodes = np.random.randint(3,budget+1)
+                        cycles.append(nx.cycle_graph(num_nodes))
+                        budget -= num_nodes
+                    
+                    left += budget
+                    tc_graph = self._join_graphs_as_adj(nx.random_tree(n=left), cycles)
+
+                # print(tc_graph); input()
+                self.dataset.instances.append(GraphInstance(id=i, data=tc_graph, node_features=np.ones(self.num_nodes_per_instance), label=1))
                 graph = nx.from_numpy_array(tc_graph)
             else:
-                # Generating a random tree containing all the nodes of the instance
-                t_graph = nx.random_tree(n=self.num_nodes_per_instance)
-                self.dataset.instances.append(GraphInstance(id=i, data=nx.to_numpy_array(t_graph), label=0))
+                empty = False or np.random.randint(0,2) # 2 excluded
+                if empty:
+                    t_graph = nx.empty_graph(self.num_nodes_per_instance)
+                else:
+                    # Generating a random tree containing all the nodes of the instance
+                    t_graph = nx.random_tree(n=self.num_nodes_per_instance)
+                
+                # print(nx.to_numpy_array(t_graph)); input()
+                self.dataset.instances.append(GraphInstance(id=i, data=nx.to_numpy_array(t_graph), node_features=np.ones(self.num_nodes_per_instance), label=0))
                 graph = t_graph
 
             # print("Nodes:", graph.number_of_nodes(), "Edges:", graph.number_of_edges())

@@ -61,7 +61,7 @@
         {"class": "src.embedder.karateclub.FeatherGraph.FeatherGraphEmbedder", "parameters":{        }}
         ,{"class": "src.embedder.karateclub.Graph2Vec.Graph2VecEmbedder", "parameters":{        }}
         ,{"class": "src.embedder.karateclub.FGSD.FGSDEmbedder", "parameters":{        }}
-        // ,{"class": "src.embedder.karateclub.GeoScattering.GeoScatteringEmbedder", "parameters":{        }}
+        ,{"class": "src.embedder.karateclub.GeoScattering.GeoScatteringEmbedder", "parameters":{        }}
         ,{"class": "src.embedder.karateclub.GL2Vec.GL2VecEmbedder", "parameters":{        }}
         ,{"class": "src.embedder.karateclub.IGE.IGEEmbedder", "parameters":{        }}
         ,{"class": "src.embedder.karateclub.LDP.LDPEmbedder", "parameters":{        }}

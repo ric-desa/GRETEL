@@ -156,6 +156,7 @@ class Evaluator(ABC):
                     m_result = metric.evaluate(instance, counterfactual, oracle, explainer, dataset, self.embedders)
                     self._results[Context.get_fullname(metric)].append({"id":str(instance.id),"value":m_result})
                 else:    
+                    # print("labels: ", instance.label, counterfactual.label, oracle.predict(instance), oracle.predict(counterfactual))
                     m_result = metric.evaluate(instance, counterfactual, oracle, explainer, dataset)
                     self._results[Context.get_fullname(metric)].append({"id":str(instance.id),"value":m_result})
 

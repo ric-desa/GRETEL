@@ -20,4 +20,6 @@ class OracleAccuracyMetric(EvaluationMetric):
 
         result = 1 if (predicted_label_instance_1 == real_label_instance_1) else 0
         
+        # print("Predicted label:", predicted_label_instance_1, " | Real label:", real_label_instance_1, " | Result: ", result)
+        
         return result

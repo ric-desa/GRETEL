@@ -26,7 +26,9 @@ class OracleTorch(TorchBase, Oracle):
             labels = batch.y.to(self.device).long()
             
             self.optimizer.zero_grad()  
-            pred = self.model(node_features, edge_index, edge_weights, batch.batch)            
+            pred = self.model(node_features, edge_index, edge_weights, batch.batch)
+            if pred.shape[1] > 2:
+                labels = torch.nn.functional.one_hot(labels, num_classes=pred.shape[1]).float()          
             loss = self.loss_fn(pred, labels)
             losses.append(loss.to('cpu').detach().numpy())
             

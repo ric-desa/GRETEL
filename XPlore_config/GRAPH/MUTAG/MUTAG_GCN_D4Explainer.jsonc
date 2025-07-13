@@ -52,24 +52,16 @@
             }   
         }
     } ],
-    "explainers": [{
-        "class": "src.explainer.generative.rsgg.RSGG",
-        "parameters": {
-          "epochs": 10,
-          "models": [
-            {
-                "class": "src.explainer.generative.gans.graph.model.GAN",
-                "parameters": {
-                    "batch_size": 1,
-                    "discriminator": {
-                        "class": "src.explainer.generative.gans.graph.discriminators.TopKPoolingDiscriminator",
-                        "parameters": {}
-                    }
-                }
+    "explainers": [ 
+        {
+            "class": "src.explainer.D4Explainer.explainers.diff_explainer.DiffExplainer",
+            "parameters": {
+                "task": "gc",
+                "dataset": "TCR",
+                "epoch": 10
             }
-        ]
         }
-      }],
+    ],
     "compose_mes" : "config/snippets/default_metrics.json",
     "compose_strs" : "config/snippets/default_store_paths.json",
     "embedders": [

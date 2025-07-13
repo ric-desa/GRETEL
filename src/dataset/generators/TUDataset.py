@@ -44,16 +44,23 @@ class TUDataset(Generator):
 
        for id, instance in enumerate(data):
             adj_matrix = torch.zeros((instance.x.size(0), instance.x.size(0)), dtype=torch.float)
-            adj_matrix[instance.edge_index[0], instance.edge_index[1]] = 1.0 
+            adj_matrix[instance.edge_index[0], instance.edge_index[1]] = 1.0
 
+            if adj_matrix.shape[0] == 0:
+                print(f"Skipping instance {id} with empty adjacency matrix.")
+                continue
+            
             edge_features = None
             try:
                 edge_features = instance.edge_weights.numpy()
             except AttributeError:
                 self.context.logger.info(f'Instance id = {id} does not have edge features.')
 
+            # if self.dataset_name == "TRIANGLES": print("TRIANGLES dataset detected, adjusting labels by -1")
+            label = instance.y.item()-1 if self.dataset_name == "TRIANGLES" else instance.y.item()
+
             self.dataset.instances.append(GraphInstance(id=id, 
-                                                        label=instance.y.item(), 
+                                                        label=label, 
                                                         data=adj_matrix.numpy(),
                                                         graph_features=None,
                                                         node_features=instance.x.numpy(),

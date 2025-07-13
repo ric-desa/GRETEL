@@ -11,20 +11,33 @@ class NodeCentrality(BaseManipulator):
         #self.context.logger.info("Building centralities for: "+str(instance.id))
         graph = instance._build_nx()
         # Calculate the degree of each node
-        degree = dict(graph.degree())
+        degree = dict(graph.degree()) # if len(graph) > 0 else {}
         # Calculate the betweenness centrality
-        betweenness_centrality = nx.betweenness_centrality(graph)
+        betweenness_centrality = nx.betweenness_centrality(graph) # if len(graph) > 0 else {}
         # Calculate the closeness centrality
-        closeness_centrality = nx.closeness_centrality(graph)
+        closeness_centrality = nx.closeness_centrality(graph) # if len(graph) > 0 else {}
         # Calculate the harmonic centrality
-        harmonic_centrality = nx.harmonic_centrality(graph)
+        harmonic_centrality = nx.harmonic_centrality(graph) # if len(graph) > 0 else {}
         # Calculate the clustering coefficient
-        clustering_coefficient = nx.clustering(graph)
+        clustering_coefficient = nx.clustering(graph) # if len(graph) > 0 else {}
         # Calculate the Katz centrality
-        katz_centrality = nx.katz_centrality_numpy(graph)
+        katz_centrality = nx.katz_centrality_numpy(graph) # if len(graph) > 0 else {}
         # Calculate the Laplacian centrality
-        laplacian_centrality = nx.laplacian_spectrum(graph)
+        # print(graph)
+        laplacian_centrality = nx.laplacian_spectrum(graph) if len(graph) > 0 else {}
+        # print(laplacian_centrality)
         # feature dictionary
+        # if graph.number_of_nodes() == 0:
+        #     feature_map = {
+        #         "degrees":           [0.0],
+        #         "betweenness":       [0.0],
+        #         "closeness":         [0.0],
+        #         "harmonic_centrality":[0.0],
+        #         "clustering_coefficient":[0.0],
+        #         "katz_centrality":   [0.0],
+        #         "laplacian_centrality":[0.0],
+        #     }
+        # else:
         feature_map = {
             "degrees": list(degree.values()),
             "betweenness": list(betweenness_centrality.values()),

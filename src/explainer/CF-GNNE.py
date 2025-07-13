@@ -11,10 +11,11 @@ from src.utils.cfg_utils import retake_oracle
 
 class CFGNNExplainer_Ext(Explainer):
     '''
+    Algorithmic implementation of XPlore.
     Extended version of the Explainer based on
     Lucic et al. CF-GNNExplainer Counterfactual Explanations for Graph Neural Networks
     https://arxiv.org/abs/2102.03322
-    Algorithm: CF-GNNExplainer: given a node v = (Av, x) where f (v) = y, generate the minimal perturbation,  ̄v = (Āv, x), such that f (̄v) ≠ y. [5.4]
+    Algorithm: given a node v = (Av, x) where f (v) = y, generate the minimal perturbation,  ̄v = (Āv, x), such that f (̄v) ≠ y. [5.4]
     '''
     
     def init(self):
@@ -22,6 +23,7 @@ class CFGNNExplainer_Ext(Explainer):
         α: Learning Rate, K: Number of iterations, β: Loss controll (Ldist wrt Lpred) (Eq.1 [4]), γ_edges: Missing edges addition fraction (per edge)
         α: 0.1, K: 500, β: 0.5 // Paper best parameters (Hyperparameter Search [6.4])
         """
+        # input("Training Complete")
         self.oracle = retake_oracle(self.local_config)
         
         local_params = self.local_config['parameters']
@@ -39,6 +41,7 @@ class CFGNNExplainer_Ext(Explainer):
         self.multi_label_classification = local_params['multi_label_classification'] # Whether target classification is multi-class
         self.dataset_classes = local_params['dataset_classes'] # Dataset classes/labels amount
         self.node_classification = local_params['node_classification'] # Whether to apply node classification
+        self.decay_α = local_params['decay_alpha'] # Wheter to decay learning rate (α) during explainer iterations
 
         if not self.multi_label_classification:
             # self.loss_fn = torch.nn.BCELoss() # useless as model outputs more than one logits
@@ -49,7 +52,7 @@ class CFGNNExplainer_Ext(Explainer):
         
         assert ((isinstance(self.K, float) or isinstance(self.K, int)) and self.K >= 1)
         assert ((isinstance(self.α, float) or isinstance(self.α, int)) and self.α > 0)
-        assert ((isinstance(self.β, float) or isinstance(self.β, int)) and self.β >= 0)
+        assert ((isinstance(self.β, float) or isinstance(self.β, int)) and self.β >= 0 or True)
         assert (isinstance(self.extended, bool))
         assert ((isinstance(self.γ_edges, float) or isinstance(self.γ_edges, int)) and 0 <= self.γ_edges <= 1)
         assert (isinstance(self.update_node_feat, bool))
@@ -116,39 +119,52 @@ class CFGNNExplainer_Ext(Explainer):
         
         if 'dataset_classes' not in local_config['parameters']:
             local_config['parameters']['dataset_classes'] = 2
+
+        if 'decay_alppha' not in local_config['parameters']:
+            local_config['parameters']['decay_alpha'] = False
                
         self.fold_id = self.local_config['parameters'].get('fold_id',-1)
 
     def explain(self, instance):
-        """edge_features = instance.edge_features
-        print(len(edge_features), len(instance.data), sum(sum(instance.data)))
-        # graph_features = instance.graph_features
-        # print(f"Graph features: {graph_features}")
-        # print(f"Edge features: {edge_features}"); input()
-        input()"""
         """
         Find a Counterfactual for ```instance```. The closest among the ones found will be returned.
-        """
+        """        
+        # print(instance.data.shape)
         self.f_v = self.oracle.predict(instance).clone().detach() # Get GCN prediction
         # self.f_v = torch.tensor(self.oracle.predict(instance), dtype=torch.long) # Get GCN prediction
         self.g_v = self.f_v # CF predicted class
+        noise_std = 1e-1 # Initialization of P_hat with noise to break symmetry
+        N = instance.data.shape[0]
+
         if self.debugging: print(f"{Color.YELLOW}Initial prediction (f_v): {Color.RESET}{self.f_v}") # Debugging
 
         if not self.extended: # Use Base version of the explainer
             self.A_v = torch.tensor(instance.data, dtype=torch.float64) # instance.data is the adjacency matrix
-            self.P_hat = torch.ones_like(self.A_v, requires_grad=True) # Initialization of P_hat
+            self.P_hat = torch.ones_like(self.A_v, requires_grad=False) # + noise_std * torch.randn_like(self.A_v) # Initialization of P_hat
             
         elif self.extended: # Use extended versione of the explainer (i.e. inverting the roles of A_v and P)
-            self.A_v = torch.ones(instance.data.shape, dtype=torch.float64) # Assume adjacency matrix full of ones        
-            missing_edges = np.where(instance.data == 0) # Missing A_v edges
-            missing_nodefeatures = np.where(instance.node_features == 0) # Missing node_features edges        
+            # self.A_v = torch.ones(instance.data.shape, dtype=torch.float64) # Assume adjacency matrix full of ones
+            
+            self.A_v = torch.ones(int(N * (N+1) / 2))
+
+            # missing_edges = np.where(instance.data == 0) # Missing A_v edges
+            missing_edges_triu = torch.tensor(instance.data == 0).triu().nonzero().t()
+            missing_edges_vec = (missing_edges_triu[0] * N + missing_edges_triu[1] - missing_edges_triu[0] * (missing_edges_triu[0]+1) / 2).int()
+            # missing_nodefeatures = np.where(instance.node_features == 0) # Missing node_features edges        
             
             # self.P_hat = torch.tensor(instance.data, requires_grad=False) # Initialization of P_hat: Perturbation Matrix for Edges
-            self.P_hat = torch.ones_like(self.A_v, requires_grad=False) # Initialization of P_hat: Perturbation Matrix for Edges
+            self.P_init = torch.ones_like(self.A_v, requires_grad=False) # Initialization of P_hat: Perturbation Matrix for Edges
 
-            self.P_hat[missing_edges] = self.γ_edges # (Adjacency matrix is full of ones) P stores the zero edges (their value is γ_edges)
-            self.P_hat.requires_grad_(True) # Enable backpropagation
-            if self.debugging: print(f"P_hat == instance.data: {torch.equal(self.P_hat, torch.tensor(instance.data))}") # Debugging: γ_edges != 0 ←→ it prints False
+            # self.P_init[missing_edges] = self.γ_edges # (Adjacency matrix is full of ones) P stores the zero edges (their value is γ_edges)
+            self.P_init[missing_edges_vec] = self.γ_edges # (Adjacency matrix is full of ones) P stores the zero edges (their value is γ_edges)
+
+            self.P_init += noise_std * torch.randn_like(self.A_v)
+            self.P_init.requires_grad_(False) # Disable backpropagation
+            # self.P_hat += noise_std * torch.rand_like(self.A_v)
+
+            self.A_v = torch.ones(instance.data.shape, dtype=torch.float64) # Assume adjacency matrix full of ones
+
+            if self.debugging: print(f"P_init == instance.data: {torch.equal(self.P_init, torch.tensor(instance.data))}") # Debugging: γ_edges != 0 ←→ it prints False
 
             if self.update_node_feat: # (Two branches initialize identically)
                 if not self.change_node_feat: # Enable only discarding or adding of node features (node feature gating)
@@ -158,7 +174,18 @@ class CFGNNExplainer_Ext(Explainer):
                     # self.P_node_hat[missing_nodefeatures] = self.γ_node_feat # Add node features where they are missing (0)
                     # self.P_node_hat.requires_grad_(True) # Enable backpropagation
                     self.P_node_hat = torch.ones(instance.node_features.shape, requires_grad=True) # Initialization Ⅱ of P_node_hat: Perturbation Matrix for Node Features. Init as ones.
-                
+
+            # if self.debugging: print(f"P_init: {self.P_init}")
+            self.P_sym = torch.zeros(instance.data.shape, dtype=torch.float32, requires_grad=False)
+            i, j = np.triu_indices(N)
+            self.P_sym[i,j] = self.P_init
+            self.P_hat = self.P_sym + self.P_sym.t() - torch.diag(torch.diag(self.P_sym)) # Symmetrizing P_hat
+
+        # P_triu = torch.triu(self.P_init, diagonal=0)
+        # self.P_hat = 0.5 * (self.P_init + self.P_init.t()) # Symmetrizing P_hat
+        self.P_hat.requires_grad_(True) # Enable backpropagation
+        # if self.debugging: print(f"P_hat symmetrized: {self.P_hat}")
+
         # Node features
         self.x = torch.tensor(instance.node_features, dtype=torch.float64) # Feature vector for v [3.1]
         self.v = (self.A_v, self.x) # [3.1]
@@ -187,10 +214,13 @@ class CFGNNExplainer_Ext(Explainer):
 
         if self.visualize: self.pos = nx.spring_layout(nx.from_numpy_array(instance.data)) # Fix graph orientation 
 
+        self.lr_reduction_epoch = self.K // 5
         for _ in range(int(self.K)):
             if self.debugging: print(f"Iteration: {_}")
-            
+
             self.__get_CF_example(instance) # Compute CF
+            if self.opt_flag: break # Breaking at first CF found (Different from paper algorithm → If Efficiency is preferred: avoiding extra loop iterations to find better (closer) CF))
+
             loss = self.__calculate_loss() # Compute Loss
 
             # Backpropagate the loss and compute gradient of P_hat and P_node_hat
@@ -214,8 +244,9 @@ class CFGNNExplainer_Ext(Explainer):
             if self.update_node_feat: self.N_v_bar.backward(torch.ones_like(self.N_v_bar)) # Perform backward pass            
 
             with torch.no_grad():  # Update without tracking the gradients further
+                if self.debugging: print(f"P_hat before update: {self.P_hat}")
                 self.P_hat -= self.α * self.P_hat.grad # Gradient update step with learning rate
-                if self.debugging: print(f"P_hat.grad: {self.P_hat.grad}")
+                if self.debugging: print(f"P_hat.grad: {self.P_hat.grad}"); print(f"P_hat updated: {self.P_hat}"); print(f"self.A_v_bar: {self.A_v_bar}")
 
                 if self.update_node_feat: # self.P_node_hat (nodes features perturbation matrix) exists only in the extended algorithm where node features perturbations are allowed
                     self.P_node_hat -= self.α * self.P_node_hat.grad # Gradient update step with learning rate
@@ -225,9 +256,25 @@ class CFGNNExplainer_Ext(Explainer):
             if self.update_node_feat: # self.P_node_hat exists only in the extended algorithm where node features perturbations are allowed
                 self.P_node_hat.grad.zero_() # zero gradients for next iteration
 
-            if self.debugging: input(f"Iteraton {_} finished | Press Enter to continue")
+            if self.visualize and False: # and self.opt_flag:
+                # print(instance.data, "\nCF Adj: ", self.A_v_bar.data)
+                instance_graph = nx.from_numpy_array(instance.data)
+                CF_graph = nx.from_numpy_array(self.A_v_bar.clone().detach().numpy())
 
-            # if self.valid_CF: break # Breaking at first CF found (Different from paper algorithm → If Efficiency is preferred: avoiding extra loop iterations to find better (closer) CF))
+                # Draw graphs. Node colours are the mean of the node features
+                fig, axes = plt.subplots(1, 2, figsize=(12, 6))
+                nx.draw(instance_graph, pos=self.pos, ax=axes[0], with_labels=True, cmap='cool', node_color=instance.node_features.mean(axis=1), edge_color='gray')
+                axes[0].set_title(f"Initial Graph | Predicted Class: {self.f_v}")
+                nx.draw(CF_graph, pos=self.pos, ax=axes[1], with_labels=True, cmap='cool', node_color=self.N_v_bar.clone().detach().numpy().mean(axis=1), edge_color='gray')
+                axes[1].set_title(f"Counterfactual Graph | Predicted Class: {self.g_v}")
+                plt.show()    
+
+            if self.debugging and self.visualize: print(f"Iteration {_} finished | Press Enter to continue")
+            elif self.debugging: input(f"Iteration {_} finished | Press Enter to continue")
+
+            if (_+1) % self.lr_reduction_epoch == 0 and self.decay_α:
+                self.α *= 0.1
+                print(f"Learning rate reduced to {Color.YELLOW}{self.α:<.6f}f{Color.RESET} at iteration {Color.YELLOW}{_}{Color.RESET}/{self.K}")
         
         edge_indices = torch.where(self.v_bar_opt[0] != 0) # (int tensor)
         edge_weights = self.v_bar_opt[0][edge_indices] # (real tensor)
@@ -245,7 +292,11 @@ class CFGNNExplainer_Ext(Explainer):
             )
         
         if self.debugging: print(f"{Color.MAGENTA}Opt predicted class: {Color.RESET}{self.oracle.predict(v_bar_opt_GI)}")
-        if self.visualize:
+        if self.visualize: # and self.opt_flag:
+            # print(instance.data, "\n", self.A_v_bar)
+            # print("NF")
+            # print(instance.node_features)
+            # print(self.N_v_bar.clone().detach().numpy())
             instance_graph = nx.from_numpy_array(instance.data)
             CF_graph = nx.from_numpy_array(self.A_v_bar.clone().detach().numpy())
 
@@ -275,11 +326,11 @@ class CFGNNExplainer_Ext(Explainer):
         """
         # [line 1]: P ← threshold(σ(P_hat))
         P_sigmoid = torch.sigmoid(self.P_hat) # Threshold on sigmoid of P_hat
-        mask = (P_sigmoid > .5).float().clone() # Hard mask (> instead of >=, with >= also 0 values in P_hat evaluate to 1 and a fully connected matrix is obtained)
+        mask = (P_sigmoid > .75).float().clone() # Hard mask (> instead of >=, with >= also 0 values in P_hat evaluate to 1 and a fully connected matrix is obtained)
         P = P_sigmoid + (mask - P_sigmoid).detach() # Gradients can flow through P
 
         self.A_v_bar = P * self.A_v # [line 2]: Ā_v = P ⊙ A_v
-        self.A_v_bar.fill_diagonal_(1) # Add self-loop Eq(4) [5.2]
+        # self.A_v_bar.fill_diagonal_(1) # Add self-loop Eq(4) [5.2]
         A_v_bar_np = self.A_v_bar.clone().detach().numpy() # Conversion to numpy array (GraphInstance requires np arrays)
         
         self.edge_indices = torch.where(self.A_v_bar != 0) # (integer tensor)
@@ -424,7 +475,9 @@ class CFGNNExplainer_Ext(Explainer):
         L_dist = D_edges + D_nodes # Total L1-norm
         
         # 3. Total loss
-        total_loss = L_pred + self.β * L_dist
+        # print("Loss:", L_pred, L_dist)
+        total_loss = L_pred - self.β * L_dist
+        # total_loss = total_loss * -1
         
         # return L_pred
         return total_loss
