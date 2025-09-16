@@ -42,6 +42,7 @@ class CFGNNExplainer_Ext(Explainer):
         self.dataset_classes = local_params['dataset_classes'] # Dataset classes/labels amount
         self.node_classification = local_params['node_classification'] # Whether to apply node classification
         self.decay_α = local_params['decay_alpha'] # Wheter to decay learning rate (α) during explainer iterations
+        self.directed = local_params['directed'] # Wheter the graph is directed or undirected
 
         if not self.multi_label_classification:
             # self.loss_fn = torch.nn.BCELoss() # useless as model outputs more than one logits
@@ -122,6 +123,9 @@ class CFGNNExplainer_Ext(Explainer):
 
         if 'decay_alppha' not in local_config['parameters']:
             local_config['parameters']['decay_alpha'] = False
+
+        if 'directed' not in local_config['parameters']:
+            local_config['parameters']['directed'] = False
                
         self.fold_id = self.local_config['parameters'].get('fold_id',-1)
 
@@ -179,7 +183,10 @@ class CFGNNExplainer_Ext(Explainer):
             self.P_sym = torch.zeros(instance.data.shape, dtype=torch.float32, requires_grad=False)
             i, j = np.triu_indices(N)
             self.P_sym[i,j] = self.P_init
-            self.P_hat = self.P_sym + self.P_sym.t() - torch.diag(torch.diag(self.P_sym)) # Symmetrizing P_hat
+            if self.directed:
+                self.P_hat = self.P_sym
+            else:
+                self.P_hat = self.P_sym + self.P_sym.t() - torch.diag(torch.diag(self.P_sym)) # Symmetrizing P_hat
 
         # P_triu = torch.triu(self.P_init, diagonal=0)
         # self.P_hat = 0.5 * (self.P_init + self.P_init.t()) # Symmetrizing P_hat

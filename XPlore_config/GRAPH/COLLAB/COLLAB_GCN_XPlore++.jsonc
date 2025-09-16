@@ -30,8 +30,8 @@
         "oracle": {
             "class": "src.oracle.nn.torch.OracleTorch",
             "parameters": {
-                "epochs":300,
-                "batch_size": 1024,
+                "epochs":50,
+                "batch_size": 256,
                 "early_stopping_threshold":1e-4,
                 "optimizer": {
                     "class": "torch.optim.RMSprop",
@@ -47,7 +47,7 @@
                 },
                 "model": {
                     "class": "src.oracle.nn.gcn_multiclass.DownstreamGCN",
-                    "parameters": {"num_conv_layers":5,"num_dense_layers":2,"conv_booster":2,"linear_decay":1.8}
+                    "parameters": {"num_conv_layers":3,"num_dense_layers":2,"conv_booster":2,"linear_decay":1.8}
                 }
             }   
         }
@@ -64,7 +64,7 @@
         "change_node_feat": true, 
         "gamma_node_feat": 0,
         "multi_label_classification": true,
-        "dataset_classes": 10,
+        "dataset_classes": 3,
         "visualize": false}}],
     "compose_mes" : "config/snippets/default_metrics.json",
     "compose_strs" : "config/snippets/default_store_paths.json",
@@ -73,7 +73,7 @@
         {"class": "src.embedder.karateclub.Graph2Vec.Graph2VecEmbedder", "parameters":{        }},
         {"class": "src.embedder.karateclub.FGSD.FGSDEmbedder", "parameters":{        }},
         {"class": "src.embedder.karateclub.GeoScattering.GeoScatteringEmbedder", "parameters":{        }},
-        {"class": "src.embedder.karateclub.GL2Vec.GL2VecEmbedder", "parameters":{        }},
+        // {"class": "src.embedder.karateclub.GL2Vec.GL2VecEmbedder", "parameters":{        }},
         {"class": "src.embedder.karateclub.IGE.IGEEmbedder", "parameters":{        }},
         {"class": "src.embedder.karateclub.LDP.LDPEmbedder", "parameters":{        }},
         {"class": "src.embedder.karateclub.NetLSD.NetLSDEmbedder", "parameters":{        }},

@@ -13,9 +13,9 @@
     "do-pairs":[{"compose_tcr_gcn" : "config/snippets/do-pairs/TCR-5000-10-0.3_GCN.json"} ],
     "explainers": [{"class": "src.explainer.CF-GNNE.CFGNNExplainer_Ext",
     "parameters": {
-        "alpha": 0.1, 
-        "K": 50, 
-        "beta": 1, 
+        "alpha": 0.00001, 
+        "K": 500, 
+        "beta": 10000, 
         "extended": true, 
         "gamma_edge": 0,
         "update_node_feat": false,

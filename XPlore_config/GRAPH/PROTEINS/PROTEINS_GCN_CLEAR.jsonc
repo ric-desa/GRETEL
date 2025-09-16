@@ -1,6 +1,6 @@
 {  
     "experiment": {
-        "scope": "GRAPH/COLLAB/CFGNNE",
+        "scope": "GRAPH/PROTEINS/CLEAR",
         "parameters": {
             "lock_release_tout":120,
             "propagate":[
@@ -23,20 +23,20 @@
             "parameters": {
                 "generator": {
                     "class": "src.dataset.generators.TUDataset.TUDataset",
-                    "parameters": { "alias": "COLLAB" }
+                    "parameters": { "alias": "PROTEINS" }
                 }
             }
         },
         "oracle": {
             "class": "src.oracle.nn.torch.OracleTorch",
             "parameters": {
-                "epochs":50,
-                "batch_size": 256,
+                "epochs": 2000,
+                "batch_size": 64,
                 "early_stopping_threshold":1e-4,
                 "optimizer": {
                     "class": "torch.optim.RMSprop",
                     "parameters": {
-                        "lr":0.01
+                        "lr":0.005
                     }
                 },
                 "loss_fn": {
@@ -46,26 +46,15 @@
                     }
                 },
                 "model": {
-                    "class": "src.oracle.nn.gcn_multiclass.DownstreamGCN",
+                    "class": "src.oracle.nn.gcn.DownstreamGCN",
                     "parameters": {"num_conv_layers":3,"num_dense_layers":2,"conv_booster":2,"linear_decay":1.8}
                 }
             }   
         }
     } ],
-    "explainers": [{
-      "class": "src.explainer.CF-GNNE.CFGNNExplainer_Ext",
-      "parameters": {
-        "alpha": 0.1, 
-        "K": 50, 
-        "beta": 0.5, 
-        "extended": false, 
-        "gamma_edge": 0.01,
-        "update_node_feat": false,
-        "change_node_feat": false, 
-        "gamma_node_feat": 0,
-        "multi_label_classification": true,
-        "dataset_classes": 3,
-        "visualize": false}}],
+    "explainers": [ 
+        {"class": "src.explainer.generative.clear.CLEARExplainer","parameters":{ "epochs": 10, "lr": 0.01, "lambda_cfe": 0.1, "alpha": 0.4, "batch_size": 32, "multiclass": true }}
+    ],
     "compose_mes" : "config/snippets/default_metrics.json",
     "compose_strs" : "config/snippets/default_store_paths.json",
     "embedders": [
@@ -73,7 +62,7 @@
         {"class": "src.embedder.karateclub.Graph2Vec.Graph2VecEmbedder", "parameters":{        }},
         {"class": "src.embedder.karateclub.FGSD.FGSDEmbedder", "parameters":{        }},
         {"class": "src.embedder.karateclub.GeoScattering.GeoScatteringEmbedder", "parameters":{        }},
-        // {"class": "src.embedder.karateclub.GL2Vec.GL2VecEmbedder", "parameters":{        }},
+        {"class": "src.embedder.karateclub.GL2Vec.GL2VecEmbedder", "parameters":{        }},
         {"class": "src.embedder.karateclub.IGE.IGEEmbedder", "parameters":{        }},
         {"class": "src.embedder.karateclub.LDP.LDPEmbedder", "parameters":{        }},
         {"class": "src.embedder.karateclub.NetLSD.NetLSDEmbedder", "parameters":{        }},

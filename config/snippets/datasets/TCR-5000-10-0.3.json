@@ -3,7 +3,7 @@
     "parameters": {
         "generator": {
             "class": "src.dataset.generators.treecycles_rand.TreeCyclesRand", 
-            "parameters": { "num_instances": 100, "num_nodes_per_instance": 5, "ratio_nodes_in_cycles": 0.75 }
+            "parameters": { "num_instances": 10000, "num_nodes_per_instance": 32, "ratio_nodes_in_cycles": 0.2 }
         }
     } 
 }

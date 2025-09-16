@@ -31,7 +31,7 @@
         "oracle": {
             "class": "src.oracle.nn.torch.OracleTorch",
             "parameters": {
-                "epochs": 50,
+                "epochs": 1000,
                 "batch_size": 32,
                 "early_stopping_threshold":1e-4,
                 "optimizer": {
@@ -48,7 +48,7 @@
                 },
                 "model": {
                     "class": "src.oracle.nn.gcn.DownstreamGCN",
-                    "parameters": {"num_conv_layers":3,"num_dense_layers":1,"conv_booster":2,"linear_decay":1.8}
+                    "parameters": {"num_conv_layers":2,"num_dense_layers":1,"conv_booster":2,"linear_decay":1.8}
                 }
             }   
         }
@@ -79,7 +79,7 @@
     {"class": "src.embedder.karateclub.FeatherGraph.FeatherGraphEmbedder", "parameters":{        }}
     ,{"class": "src.embedder.karateclub.Graph2Vec.Graph2VecEmbedder", "parameters":{        }}
     ,{"class": "src.embedder.karateclub.FGSD.FGSDEmbedder", "parameters":{        }}
-    ,{"class": "src.embedder.karateclub.GeoScattering.GeoScatteringEmbedder", "parameters":{        }}
+    // ,{"class": "src.embedder.karateclub.GeoScattering.GeoScatteringEmbedder", "parameters":{        }}
     ,{"class": "src.embedder.karateclub.GL2Vec.GL2VecEmbedder", "parameters":{        }}
     ,{"class": "src.embedder.karateclub.IGE.IGEEmbedder", "parameters":{        }}
     ,{"class": "src.embedder.karateclub.LDP.LDPEmbedder", "parameters":{        }}

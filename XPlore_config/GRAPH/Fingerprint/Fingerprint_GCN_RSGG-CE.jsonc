@@ -30,8 +30,8 @@
         "oracle": {
             "class": "src.oracle.nn.torch.OracleTorch",
             "parameters": {
-                "epochs":300,
-                "batch_size": 1024,
+                "epochs":2000,
+                "batch_size": 128,
                 "early_stopping_threshold":1e-4,
                 "optimizer": {
                     "class": "torch.optim.RMSprop",
@@ -47,7 +47,7 @@
                 },
                 "model": {
                     "class": "src.oracle.nn.gcn_multiclass.DownstreamGCN",
-                    "parameters": {"num_conv_layers":5,"num_dense_layers":2,"conv_booster":2,"linear_decay":1.8}
+                    "parameters": {"num_conv_layers":5,"num_dense_layers":5,"conv_booster":5,"linear_decay":1.8}
                 }
             }   
         }

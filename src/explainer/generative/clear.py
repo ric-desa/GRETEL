@@ -80,8 +80,16 @@ class CLEARExplainer(Trainable, Explainer):
             # causality = torch.from_numpy(np.array(new_instance.graph_features[self.dataset.graph_features_map["graph_causality"]])).float().to(self.device)[None,:]
             
             graph_features_map = instance._dataset.graph_features_map
+            # print(graph_features_map)
+            # print("- -  -")
+            # print(graph_features_map["graph_causality"])
+            # print("- -  -")
+            # print(torch.from_numpy(np.array(new_instance.graph_features[0, self.dataset.graph_features_map["graph_causality"]])))
             if "graph_causality" in graph_features_map:
-                causality = torch.from_numpy(np.array(new_instance.graph_features[self.dataset.graph_features_map["graph_causality"]])).float().to(self.device)[None,:]
+                if graph_features_map["graph_causality"] == 1:
+                    causality = torch.from_numpy(np.array([new_instance.graph_features[0, self.dataset.graph_features_map["graph_causality"]]])).float().to(self.device)[None,:]
+                else:
+                    causality = torch.from_numpy(np.array(new_instance.graph_features[self.dataset.graph_features_map["graph_causality"]])).float().to(self.device)[None,:]
             else:
                 # print("Warning: 'graph_causality' not found in graph_features_map. Using default value.")
                 causality = torch.zeros((1, 1)).to(self.device)
@@ -520,7 +528,15 @@ class CLEARDataset(TorchDataset):
         graph_features_map = instance._dataset.graph_features_map
 
         if "graph_causality" in graph_features_map:
-            causality = torch.from_numpy(np.array(instance.graph_features[instance._dataset.graph_features_map["graph_causality"]]))
+            # print(instance.graph_features)
+            # print("- -  -")
+            # print(instance._dataset.graph_features_map["graph_causality"])
+            # print("- -  -")
+            # print(torch.from_numpy(np.array(instance.graph_features[0,instance._dataset.graph_features_map["graph_causality"]])))
+            if instance._dataset.graph_features_map["graph_causality"] == 1:
+                causality = torch.from_numpy(np.array([instance.graph_features[0,instance._dataset.graph_features_map["graph_causality"]]]))
+            else:
+                causality = torch.from_numpy(np.array(instance.graph_features[instance._dataset.graph_features_map["graph_causality"]]))
         else:
             # print("Warning: 'graph_causality' not found in graph_features_map. Using default value.")
             causality = torch.zeros(1)
@@ -528,3 +544,23 @@ class CLEARDataset(TorchDataset):
         # causality = torch.from_numpy(np.array(instance.graph_features[instance._dataset.graph_features_map["graph_causality"]]))
 
         return adj, x, label, causality
+    
+    # @classmethod
+    # def to_geometric(self, instance: GraphInstance, label=0):
+    #     adj, x, label = super().to_geometric(instance, label)
+
+    #     graph_features_map = instance._dataset.graph_features_map
+
+    #     if "graph_causality" in graph_features_map:
+    #         # 1) grab the raw feature array
+    #         gf = instance.graph_features  
+    #         # 2) flatten to 1D (so shape (F,))
+    #         flat_gf = gf.reshape(-1)
+    #         # 3) pick out the causality index
+    #         idx = graph_features_map["graph_causality"]
+    #         # 4) convert that single value to a torch tensor
+    #         causality = torch.tensor(flat_gf[idx], dtype=torch.float32)
+    #     else:
+    #         causality = torch.zeros(1, dtype=torch.float32)
+
+    #     return adj, x, label, causality

@@ -57,7 +57,7 @@
       "parameters": {
         "alpha": 0.1,
         "decay_lr": true,
-        "K": 500, 
+        "K": 50, 
         "beta": 0.5, 
         "extended": true, 
         "gamma_edge": 0.01,

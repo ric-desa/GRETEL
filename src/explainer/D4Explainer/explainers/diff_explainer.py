@@ -278,6 +278,7 @@ class DiffExplainer(ExplainerD4, Trainable, Explainer):
         )
         scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=args.lr_decay)
         noise_list = args.noise_list
+        saved = False
         for epoch in range(args.epoch):
             print(f"start epoch {epoch}")
             train_losses = []
@@ -461,6 +462,9 @@ class DiffExplainer(ExplainerD4, Trainable, Explainer):
                 if mean_test_sparsity < best_sparsity:
                     best_sparsity = mean_test_sparsity
                     model_save(args, model, mean_train_loss, best_sparsity, mean_test_acc)
+                    saved = True
+        if not saved:
+            model_save(args, model, mean_train_loss, best_sparsity, mean_test_acc)
 
     def explain(self, graph):
         """

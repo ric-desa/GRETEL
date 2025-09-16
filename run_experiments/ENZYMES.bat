@@ -1,4 +1,4 @@
-:: .\run_experiments\ENZYMES.bat
+:: run_experiments\ENZYMES.bat
 :: python main.py
 
 python main.py XPlore_config\GRAPH\ENZYMES\ENZYMES_GCN_CF-GNNE.jsonc

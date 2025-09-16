@@ -30,8 +30,8 @@
         "oracle": {
             "class": "src.oracle.nn.torch.OracleTorch",
             "parameters": {
-                "epochs":500,
-                "batch_size": 8,
+                "epochs":2000,
+                "batch_size": 128,
                 "early_stopping_threshold":1e-4,
                 "optimizer": {
                     "class": "torch.optim.RMSprop",
@@ -47,7 +47,7 @@
                 },
                 "model": {
                     "class": "src.oracle.nn.gcn_multiclass.DownstreamGCN",
-                    "parameters": {"num_conv_layers":3,"num_dense_layers":1,"conv_booster":2,"linear_decay":1.8}
+                    "parameters": {"num_conv_layers":5,"num_dense_layers":5,"conv_booster":5,"linear_decay":1.8}
                 }
             }   
         }
@@ -65,7 +65,7 @@
         {"class": "src.embedder.karateclub.GL2Vec.GL2VecEmbedder", "parameters":{        }},
         {"class": "src.embedder.karateclub.IGE.IGEEmbedder", "parameters":{        }},
         {"class": "src.embedder.karateclub.LDP.LDPEmbedder", "parameters":{        }},
-        // {"class": "src.embedder.karateclub.NetLSD.NetLSDEmbedder", "parameters":{        }},
+        {"class": "src.embedder.karateclub.NetLSD.NetLSDEmbedder", "parameters":{        }},
         {"class": "src.embedder.karateclub.SF.SFEmbedder", "parameters":{        }},
         {"class": "src.embedder.karateclub.WaveletCharacteristic.WaveletCharacteristicEmbedder", "parameters":{        }}
     ]

@@ -31,12 +31,13 @@ class TreeCyclesRand(Generator):
             has_cycles = np.random.randint(0,2) # 2 excluded
             # If the graph will contain cycles
             if(has_cycles):
-                full = False or np.random.randint(0,2) # 2 excluded
+                full = False # or np.random.randint(0,2) # 2 excluded
                 if full:
                     tc_graph = nx.to_numpy_array(nx.complete_graph(self.num_nodes_per_instance))
                 else:
                     cycles = []
                     budget = int( self.ratio_nodes_in_cycles * self.num_nodes_per_instance )
+                    budget = np.random.randint(3, budget+1) if budget > 3 else budget
                     left = self.num_nodes_per_instance - budget
                                 
                     while budget > 2: 
@@ -51,7 +52,7 @@ class TreeCyclesRand(Generator):
                 self.dataset.instances.append(GraphInstance(id=i, data=tc_graph, node_features=np.ones(self.num_nodes_per_instance), label=1))
                 graph = nx.from_numpy_array(tc_graph)
             else:
-                empty = False or np.random.randint(0,2) # 2 excluded
+                empty = False # or np.random.randint(0,2) # 2 excluded
                 if empty:
                     t_graph = nx.empty_graph(self.num_nodes_per_instance)
                 else:

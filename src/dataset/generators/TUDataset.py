@@ -1,4 +1,4 @@
-import torch
+import torch, numpy as np
 from os.path import join,exists
 from os import makedirs
 
@@ -35,14 +35,16 @@ class TUDataset(Generator):
             self.populate()
 
     def populate(self):
-       data = torch.load(self.read_file)
+        data = torch.load(self.read_file)
+        features_map = {f'attribute_{i}': i for i in range(data[0].x.size(1))} if self.dataset_name != "COLLAB" else {f'attribute_{i}': i for i in range(data[0].num_nodes)}
+        self.dataset.node_features_map = features_map
 
-       features_map = {f'attribute_{i}': i for i in range(data[0].x.size(1))}
-       self.dataset.node_features_map = features_map
+        # TODO edge_map, graph_map
 
-       # TODO edge_map, graph_map
-
-       for id, instance in enumerate(data):
+        for id, instance in enumerate(data):
+            if self.dataset_name == "COLLAB":
+                # adj_matrix = torch.zeros((instance.num_nodes, instance.num_nodes), dtype=torch.float)
+                instance.x = torch.zeros((instance.num_nodes, 1))
             adj_matrix = torch.zeros((instance.x.size(0), instance.x.size(0)), dtype=torch.float)
             adj_matrix[instance.edge_index[0], instance.edge_index[1]] = 1.0
 
