@@ -59,7 +59,7 @@
         "K": 500, 
         "beta": 0.5, 
         "extended": true, 
-        "gamma_edge": 0.01,
+        "gamma_edge": 0,
         "update_node_feat": false,
         "change_node_feat": false, 
         "gamma_node_feat": 0,

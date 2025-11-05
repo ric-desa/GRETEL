@@ -92,7 +92,7 @@ class CFGNNExplainer_Ext(Explainer):
             local_config['parameters']['extended'] = True
             
         if 'gamma_edge' not in local_config['parameters']:
-            local_config['parameters']['gamma_edge'] = 0.01
+            local_config['parameters']['gamma_edge'] = 0
 
         if 'update_node_feat' not in local_config['parameters']:
             local_config['parameters']['update_node_feat'] = True    
@@ -333,11 +333,11 @@ class CFGNNExplainer_Ext(Explainer):
         """
         # [line 1]: P ← threshold(σ(P_hat))
         P_sigmoid = torch.sigmoid(self.P_hat) # Threshold on sigmoid of P_hat
-        mask = (P_sigmoid > .75).float().clone() # Hard mask (> instead of >=, with >= also 0 values in P_hat evaluate to 1 and a fully connected matrix is obtained)
+        mask = (P_sigmoid > .5).float().clone() # Hard mask (> instead of >=, with >= also 0 values in P_hat evaluate to 1 and a fully connected matrix is obtained)
         P = P_sigmoid + (mask - P_sigmoid).detach() # Gradients can flow through P
 
         self.A_v_bar = P * self.A_v # [line 2]: Ā_v = P ⊙ A_v
-        # self.A_v_bar.fill_diagonal_(1) # Add self-loop Eq(4) [5.2]
+        self.A_v_bar.fill_diagonal_(1) # Add self-loop Eq(4) [5.2]
         A_v_bar_np = self.A_v_bar.clone().detach().numpy() # Conversion to numpy array (GraphInstance requires np arrays)
         
         self.edge_indices = torch.where(self.A_v_bar != 0) # (integer tensor)
@@ -458,6 +458,7 @@ class CFGNNExplainer_Ext(Explainer):
             # targets = (torch.nn.functional.one_hot(self.f_v, num_classes=self.dataset_classes).sum(dim=1)>0).float() # Create a multi-one-hot from a vector with many class labes eg. [0,2,3] -> [1,0,1,1] (mask to prevent eventual class label repetitions eg. [2,4,4,5])
             targets = torch.nn.functional.one_hot(self.f_v, num_classes=self.dataset_classes).float() # having target label for each node -> one-hot for each label
         elif isinstance(self.loss_fn, torch.nn.NLLLoss): # CE is just NNL with log+softmax included
+            # print(f"self.g_v_logits: {self.g_v_logits}")
             inputs = F.log_softmax(self.g_v_logits, dim=0) # Prediction log probabilities required for NLL loss
             targets = self.f_v
 
