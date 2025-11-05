@@ -46,7 +46,7 @@ class TUDataset(Generator):
                 # adj_matrix = torch.zeros((instance.num_nodes, instance.num_nodes), dtype=torch.float)
                 instance.x = torch.zeros((instance.num_nodes, 1))
             adj_matrix = torch.zeros((instance.x.size(0), instance.x.size(0)), dtype=torch.float)
-            adj_matrix[instance.edge_index[0], instance.edge_index[1]] = 1.0
+            adj_matrix[instance.edge_index[0], instance.edge_index[1]] = 1.0 
 
             if adj_matrix.shape[0] == 0:
                 print(f"Skipping instance {id} with empty adjacency matrix.")
