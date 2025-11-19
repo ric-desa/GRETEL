@@ -66,6 +66,90 @@ def pad_features(features, target_dimension):
         to_pad = np.zeros((rows_to_add, feature_dim))
         features = np.vstack([features, to_pad])
     return features
+
+def discretize_to_nearest_integer(tensor: torch.Tensor) -> torch.Tensor:
+    """
+    Discretize tensor values to the nearest integer.
+    
+    Args:
+        tensor: Input tensor to discretize
+        
+    Returns:
+        Tensor with values rounded to nearest integer
+    """
+    return torch.round(tensor)
+
+def get_optimizer(cfg, model):
+    """
+    Create an optimizer for the given model based on configuration.
+    
+    Args:
+        cfg: Configuration dictionary
+        model: Model to optimize
+        
+    Returns:
+        Optimizer instance
+    """
+    optimizer_config = cfg.get('parameters', {}).get('optimizer', {})
+    optimizer_type = optimizer_config.get('type', 'Adam').lower()
+    lr = optimizer_config.get('lr', 0.01)
+    weight_decay = optimizer_config.get('weight_decay', 0.0)
+    
+    if optimizer_type == 'adam':
+        return torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+    elif optimizer_type == 'sgd':
+        momentum = optimizer_config.get('momentum', 0.9)
+        return torch.optim.SGD(model.parameters(), lr=lr, momentum=momentum, weight_decay=weight_decay)
+    elif optimizer_type == 'adamw':
+        return torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
+    else:
+        # Default to Adam
+        return torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+
+def build_counterfactual_graph_gc(x, edge_index, graph, oracle, output_actual, device):
+    """
+    Constructs a counterfactual graph based on the provided edge index, original graph, and results from an oracle model.
+    
+    Args:
+        x (Tensor): The node features tensor.
+        edge_index (Tensor): The edge index tensor representing the edges of the counterfactual graph.
+        graph (Data): The original graph data object containing node features and other graph-related information.
+        oracle (nn.Module): The oracle neural network model used to obtain embeddings and other necessary computations.
+        output_actual (Tensor): The actual output tensor from the oracle model, used to determine the counterfactual labels.
+        device (str, optional): The device to perform computations on, default is "cuda".
+        
+    Returns:
+        Data: A new Data object representing the counterfactual graph with updated attributes.
+    """
+    from torch_geometric.data import Data
+    
+    # Ensure batch is available
+    if hasattr(graph, 'batch') and graph.batch is not None:
+        batch = graph.batch.to(device)
+    else:
+        batch = torch.zeros(x.shape[0], dtype=torch.long, device=device)
+    
+    # Get embedding representation if the oracle supports it
+    x_projection = None
+    if hasattr(oracle, 'get_embedding_repr'):
+        try:
+            x_projection = torch.mean(oracle.get_embedding_repr(x, edge_index, batch), dim=0)
+        except Exception as e:
+            # Fallback if get_embedding_repr fails
+            # Use mean of node features as projection
+            x_projection = torch.mean(x, dim=0)
+    else:
+        # Fallback: use mean of node features as projection
+        x_projection = torch.mean(x, dim=0)
+    
+    counterfactual = Data(
+        x=x.to(device),
+        edge_index=edge_index.to(device),
+        y=torch.argmax(output_actual, dim=1).to(device),
+        x_projection=x_projection.to(device)
+    )
+    
+    return counterfactual
 # from src.utils.utils import update_saved_pyg 
 
 #input_file="/NFSHOME/mprado/CODE/gretel-steel-2/GRETEL/data/explainers/clear_fit_on_tree-cycles_instances-500_nodes_per_inst-28_nodes_in_cycles-7_fold_id=0_batch_size_ratio=0.15_alpha=0.4_lr=0.01_weight_decay=5e-05_epochs=600_dropout=0.1/old_explainer"
