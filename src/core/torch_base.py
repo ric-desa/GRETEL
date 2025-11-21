@@ -75,13 +75,17 @@ class TorchBase(Trainable):
                 edge_index = batch.edge_index.to(self.device)
                 edge_weights = batch.edge_attr.to(self.device)
                 labels = batch.y.to(self.device).long()
+                # print(f"labels at torch base: {labels[:5]}")
+                # print("labels dtype:", labels.dtype, "min:", labels.min().item(), "max:", labels.max().item())
                 
                 self.optimizer.zero_grad()
                 
                 pred = self.model(node_features, edge_index, edge_weights, batch.batch)
                 # print(f'pred.shape, labels.shape: {pred.shape, labels.shape}')
-                if pred.shape[1] > 2:
+                # print(f'pred: {pred[:5]}')
+                if pred.shape[1] > 2: # and labels.dim() > 1:
                     labels = torch.nn.functional.one_hot(labels, num_classes=pred.shape[1]).float()                  
+                    # print(f'labels after one hot: {labels[:5]}')
                 loss = self.loss_fn(pred, labels)
                 losses.append(loss.to('cpu').detach().numpy())
                 loss.backward()

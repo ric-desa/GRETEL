@@ -22,9 +22,10 @@ class CorrectnessNodesMetric(EvaluationMetric):
             label_instance_2 = oracle.predict(instance_2)[node_id]
             oracle._call_counter -= 2
 
-            ged = self._ged.evaluate(instance_1, instance_2, oracle)
+            # ged = self._ged.evaluate(instance_1, instance_2, oracle)
 
-            result = 1 if (label_instance_1 != label_instance_2) and (ged != 0) else 0
+            # result = 1 if (label_instance_1 != label_instance_2) and (ged != 0) else 0
+            result = 1 if (label_instance_1 != label_instance_2) else 0
             
             r.append(result)
             

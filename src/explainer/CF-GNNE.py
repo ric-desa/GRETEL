@@ -9,13 +9,13 @@ from src.core.explainer_base import Explainer
 from src.utils.cfg_utils import retake_oracle
 
 
-class CFGNNExplainer_Ext(Explainer):
+class CFGNNExplainer(Explainer):
     '''
     Algorithmic implementation of XPlore.
     Extended version of the Explainer based on
     Lucic et al. CF-GNNExplainer Counterfactual Explanations for Graph Neural Networks
     https://arxiv.org/abs/2102.03322
-    Algorithm: given a node v = (Av, x) where f (v) = y, generate the minimal perturbation,  ̄v = (Āv, x), such that f (̄v) ≠ y. [5.4]
+    Algorithm: given a graph G = (AG, X) where f (G) = y, generate the minimal perturbation,  ̄G = (ĀG, X), such that f (̄G) ≠ y. [5.4]
     '''
     
     def init(self):
@@ -89,22 +89,22 @@ class CFGNNExplainer_Ext(Explainer):
             local_config['parameters']['beta'] = 0.5
 
         if 'extended' not in local_config['parameters']:
-            local_config['parameters']['extended'] = True
+            local_config['parameters']['extended'] = False
             
         if 'gamma_edge' not in local_config['parameters']:
             local_config['parameters']['gamma_edge'] = 0
 
         if 'update_node_feat' not in local_config['parameters']:
-            local_config['parameters']['update_node_feat'] = True    
+            local_config['parameters']['update_node_feat'] = False    
         
         if 'change_node_feat' not in local_config['parameters']:
-            local_config['parameters']['change_node_feat'] = True
+            local_config['parameters']['change_node_feat'] = False
 
         if 'change_all_feat' not in local_config['parameters']:
-            local_config['parameters']['change_all_feat'] = True
+            local_config['parameters']['change_all_feat'] = False
             
         if 'gamma_node_feat' not in local_config['parameters']:
-            local_config['parameters']['gamma_node_feat'] = 0.01
+            local_config['parameters']['gamma_node_feat'] = 0
 
         if 'debugging' not in local_config['parameters']:
             local_config['parameters']['debugging'] = False

@@ -16,7 +16,24 @@ class TUDataset(Generator):
         if not exists(base_path):
             self.context.logger.info("Downloading " + self.dataset_name + "...")
             makedirs(base_path, exist_ok=True)
-            dataset = downloader(base_path, name=self.dataset_name, use_node_attr=True, use_edge_attr=True)
+            if self.dataset_name == "DBLP_v1":
+                dataset = downloader(base_path, name=self.dataset_name, use_node_attr=False, use_edge_attr=True)
+                # Convert one-hot node labels → single integer feature BEFORE saving
+                compact = []
+                for i in range(len(dataset)):
+                    data = dataset[i]   # this gives a Data object
+                    # if one-hot was created, reduce it
+                    if hasattr(data, 'x') and data.x is not None and data.x.dim() == 2 and data.x.size(1) > 1000:
+                        idx = data.x.argmax(dim=1)
+                        data.x = idx.unsqueeze(1).to(torch.float32)
+                    if hasattr(data, 'node_labels'):
+                        del data.node_labels
+                    compact.append(data)
+                torch.save(compact, join(base_path, f'{self.dataset_name}.pkl'))
+                self.context.logger.info(f"Saved dataset {self.dataset_name} in {join(base_path, f'{self.dataset_name}.pkl')}.")
+                return base_path
+            else:
+                dataset = downloader(base_path, name=self.dataset_name, use_node_attr=True, use_edge_attr=True)
             if not exists(join(base_path, f'{self.dataset_name}.pkl')):
                 torch.save(dataset, join(base_path, f'{self.dataset_name}.pkl'))
                 self.context.logger.info(f"Saved dataset {self.dataset_name} in {join(base_path, f'{self.dataset_name}.pkl')}.")
@@ -36,22 +53,25 @@ class TUDataset(Generator):
 
     def populate(self):
         data = torch.load(self.read_file)
-        features_map = {f'attribute_{i}': i for i in range(data[0].x.size(1))} if self.dataset_name != "COLLAB" else {f'attribute_{i}': i for i in range(data[0].num_nodes)}
+        features_map = {f'attribute_{i}': i for i in range(data[0].x.size(1))} if self.dataset_name not in {"COLLAB", "IMDB-MULTI"} else {f'attribute_{i}': i for i in range(data[0].num_nodes)}
         self.dataset.node_features_map = features_map
 
         # TODO edge_map, graph_map
 
         for id, instance in enumerate(data):
-            if self.dataset_name == "COLLAB":
+            if self.dataset_name in {"COLLAB", "IMDB-MULTI", "DBLP_v1"}:
+                # print(f"instance.num_nodes.shape: {instance.num_nodes}")
+                # input()
                 # adj_matrix = torch.zeros((instance.num_nodes, instance.num_nodes), dtype=torch.float)
                 instance.x = torch.zeros((instance.num_nodes, 1))
+            
             adj_matrix = torch.zeros((instance.x.size(0), instance.x.size(0)), dtype=torch.float)
             adj_matrix[instance.edge_index[0], instance.edge_index[1]] = 1.0 
 
             if adj_matrix.shape[0] == 0:
                 print(f"Skipping instance {id} with empty adjacency matrix.")
                 continue
-            
+                
             edge_features = None
             try:
                 edge_features = instance.edge_weights.numpy()

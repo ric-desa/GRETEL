@@ -19,11 +19,14 @@ class FidelityNodesMetric(EvaluationMetric):
             label_instance_2 = oracle.predict(instance_2)[node_id]
             oracle._call_counter -= 2
 
-            prediction_fidelity = 1 if (label_instance_1 == instance_1.label) else 0
+            prediction_fidelity = 1 if (label_instance_1 == instance_1.label[node_id]) else 0
             
-            counterfactual_fidelity = 1 if (label_instance_2 == instance_1.label) else 0
+            counterfactual_fidelity = 1 if (label_instance_2 == instance_1.label[node_id]) else 0
 
             result = prediction_fidelity - counterfactual_fidelity
+
+            # print("label_instance_1, label_instance_2, instance_1.label, node_id, result", label_instance_1, label_instance_2, instance_1.label, node_id, result)
+            # input()
             
             r.append(result)
             
