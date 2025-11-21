@@ -1,6 +1,6 @@
 {
     "experiment" : {
-        "scope": "NODE/ENZYMES/XPlore",
+        "scope": "NODE/ENZYMES/XPlore++",
         "parameters" : {
             "lock_release_tout":120,
             "propagate":[

@@ -39,7 +39,7 @@
                     }
                 },
                 "model": {
-                    "class": "src.oracle.nn.gcn_multiclass.DownstreamGCN",
+                    "class": "src.oracle.nn.node_gcn.DownstreamGCN",
                     "parameters": {"num_conv_layers":3,"num_dense_layers":1,"conv_booster":2,"linear_decay":1.8}
                 }
             }   
