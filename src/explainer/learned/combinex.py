@@ -5,6 +5,8 @@ import numpy as np
 from torch_geometric.data import Data
 from typing import Optional
 from omegaconf import DictConfig
+from .graph_perturber import GraphPerturber
+from torch_geometric.data import Data
 
 from src.core.explainer_base import Explainer
 from src.dataset.instances.graph import GraphInstance
@@ -62,15 +64,11 @@ class COMBINEX(Explainer):
         
         # Convert GraphInstance to torch_geometric Data
         graph_data = self._graph_instance_to_data(instance)
-        
-        # Initialize graph perturber
-        from .graph_perturber import GraphPerturber
-        
         # Ensure graph_data has batch attribute
-        if not hasattr(graph_data, 'batch') or graph_data.batch is None:
+        """if not hasattr(graph_data, 'batch') or graph_data.batch is None:
             graph_data.batch = torch.zeros(graph_data.x.shape[0], dtype=torch.long, device=self.device)
         else:
-            graph_data.batch = graph_data.batch.to(self.device)
+            graph_data.batch = graph_data.batch.to(self.device)"""
         
         self.graph_perturber = GraphPerturber(
             cfg=self.local_config,
@@ -79,9 +77,7 @@ class COMBINEX(Explainer):
             graph=graph_data,
             device=self.device
         ).to(self.device)
-        
-        self.graph_perturber.deactivate_model()
-        
+                
         # Get optimizer
         self.optimizer = self.get_optimizer(self.local_config, self.graph_perturber)
         
@@ -119,15 +115,15 @@ class COMBINEX(Explainer):
         """
         self.optimizer.zero_grad()
         
-        # Ensure batch is available
+        """# Ensure batch is available
         if not hasattr(graph, 'batch') or graph.batch is None:
             batch = torch.zeros(graph.x.shape[0], dtype=torch.long, device=self.device)
         else:
-            batch = graph.batch.to(self.device)
+            batch = graph.batch.to(self.device)"""
         
         # Forward pass through graph perturber
-        differentiable_output = self.graph_perturber.forward(graph.x.to(self.device), batch)
-        model_out, V_pert, EP_x = self.graph_perturber.forward_prediction(graph.x.to(self.device), batch)
+        differentiable_output = self.graph_perturber.forward(graph.x.to(self.device), graph.batch)
+        model_out, V_pert, EP_x = self.graph_perturber.forward_prediction(graph.x.to(self.device), graph.batch)
         
         # Get predictions
         y_pred_new_actual = torch.argmax(model_out, dim=1)
@@ -141,13 +137,13 @@ class COMBINEX(Explainer):
         alpha = self._get_alpha(epoch, edge_loss, node_loss)
         
         # Calculate eta: 1 if prediction changed, 0 otherwise
-        original_label = torch.tensor([original_instance.label], device=self.device, dtype=torch.long)
+        original_label = torch.tensor([self.oracle.predict(original_instance)], device=self.device, dtype=torch.long)
         eta = ((y_pred_new_actual != original_label) | (original_label != y_pred_differentiable)).float()
         
         # Calculate prediction loss
         # Note: For counterfactuals, we might want to maximize loss to encourage label flip
         # Adjust this based on your specific loss formulation
-        loss_pred = torch.nn.functional.cross_entropy(
+        loss_pred = -torch.nn.functional.cross_entropy(
             differentiable_output, 
             original_label
         )
@@ -158,16 +154,14 @@ class COMBINEX(Explainer):
         # Backward pass
         loss.backward()
         self.optimizer.step()
-        
+
         counterfactual = None
-        
         # Check if we found a valid counterfactual (prediction should be different from original)
         # Note: Original code checked for equality, but counterfactuals typically require different predictions
         # Adjust this condition based on your specific requirements
         if y_pred_new_actual != original_label and loss.item() < self.best_loss:
-            from ...utils.utils import build_counterfactual_graph_gc
-            
-            counterfactual = build_counterfactual_graph_gc(
+            print("Building counterfactual graph")
+            counterfactual = self._build_counterfactual_graph_gc(
                 x=V_pert,
                 edge_index=cf_edges,
                 graph=graph,
@@ -242,7 +236,7 @@ class COMBINEX(Explainer):
         adj_matrix = np.zeros((num_nodes, num_nodes), dtype=np.float32)
         
         if data.edge_index is not None and data.edge_index.numel() > 0:
-            edge_index = data.edge_index.cpu().numpy()
+            edge_index = data.edge_index.cpu().detach().numpy()
             if edge_index.shape[0] == 2:  # [2, num_edges]
                 for i in range(edge_index.shape[1]):
                     row, col = edge_index[0, i], edge_index[1, i]
@@ -251,7 +245,7 @@ class COMBINEX(Explainer):
                         adj_matrix[row, col] = weight
         
         # Get node features
-        node_features = data.x.cpu().numpy().astype(np.float32)
+        node_features = data.x.cpu().detach().numpy().astype(np.float32)
         
         # Get edge features and weights
         edges = np.nonzero(adj_matrix)
@@ -260,7 +254,7 @@ class COMBINEX(Explainer):
         if num_edges > 0:
             edge_features = np.ones((num_edges, 1), dtype=np.float32)
             if data.edge_attr is not None and len(data.edge_attr) > 0:
-                edge_weights = data.edge_attr.cpu().numpy().flatten().astype(np.float32)
+                edge_weights = data.edge_attr.cpu().detach().numpy().flatten().astype(np.float32)
                 if len(edge_weights) != num_edges:
                     # If mismatch, use adjacency matrix values
                     edge_weights = adj_matrix[edges].astype(np.float32)
@@ -319,6 +313,32 @@ class COMBINEX(Explainer):
             return optim.Adam(model.parameters(), lr=opt_lr)
         else:
             raise ValueError(f"Optimizer {opt_name} does not exist!")
+
+    def _build_counterfactual_graph_gc(self, x, edge_index, graph, oracle, output_actual, device):
+        """
+        Build a counterfactual graph using the graph perturber.
+        """
+        # Get embedding representation if the oracle supports it
+        x_projection = None
+        if hasattr(oracle, 'get_embedding_repr'):
+            try:
+                x_projection = torch.mean(oracle.get_embedding_repr(x, edge_index, batch), dim=0)
+            except Exception as e:
+                # Fallback if get_embedding_repr fails
+                # Use mean of node features as projection
+                x_projection = torch.mean(x, dim=0)
+        else:
+            # Fallback: use mean of node features as projection
+            x_projection = torch.mean(x, dim=0)
+        
+        counterfactual = Data(
+            x=x.to(device),
+            edge_index=edge_index.to(device),
+            y=torch.argmax(output_actual, dim=1).to(device),
+            x_projection=x_projection.to(device)
+        )
+        
+        return counterfactual
 
     def check_configuration(self):
         """Check and validate configuration parameters."""

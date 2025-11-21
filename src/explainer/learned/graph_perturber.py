@@ -5,10 +5,11 @@ from torch import nn
 from torch.nn.parameter import Parameter
 import torch.nn.functional as F
 from typing import Tuple
+
+from src.dataset.instances.graph import GraphInstance
 import numpy as np
 
 from .perturber.pertuber import Perturber
-from src.utils.utils import discretize_to_nearest_integer
 
 
 class GraphPerturber(Perturber):
@@ -19,12 +20,12 @@ class GraphPerturber(Perturber):
 
     def __init__(self, 
                  cfg, 
-                 model: nn.Module, 
+                 model, 
                  graph: Data,
                  datainfo,  # Can be Dataset or a DataInfo-like object
                  device: str = "cuda") -> None:
         
-        super().__init__(cfg=cfg, model=model)
+        super().__init__(cfg=cfg, oracle=model)
         self.device = torch.device(device if torch.cuda.is_available() and device == "cuda" else "cpu")
         self.beta = 0.5
         # Initialize edge perturbation parameters
@@ -115,11 +116,7 @@ class GraphPerturber(Perturber):
         perturbed_discrete_features = perturbation_discrete_rescaling + V_x
         discrete_perturbation = self.discrete_features_mask * torch.clamp(perturbed_discrete_features, min=self.min_range, max=self.max_range)
         continuous_perturbation = self.continous_features_mask * torch.clamp((self.P_x + V_x), min=self.min_range, max=self.max_range)
-        
-        perturbed_features = discrete_perturbation + continuous_perturbation
-
-        return self.model(x=perturbed_features, edge_index=self.graph_sample.edge_index.to(self.device), 
-                         batch=batch, edge_weights=torch.sigmoid(self.EP_x))
+        return self.oracle.model(perturbed_discrete_features, self.edge_index, torch.sigmoid(self.EP_x), batch)
     
     def forward_prediction(self, V_x, batch):
         """
@@ -132,8 +129,8 @@ class GraphPerturber(Perturber):
         Returns:
             Tuple[Tensor, Tensor, Tensor]: (model_output, perturbed_features, edge_weights)
         """
-        discrete_perturbation = self.discrete_features_mask * discretize_to_nearest_integer(
-            self.min_range + (self.max_range - self.min_range) * F.tanh(self.P_x) + V_x
+        discrete_perturbation = self.discrete_features_mask * torch.round(
+            self.min_range + (self.max_range - self.min_range) * torch.tanh(self.P_x) + V_x
         )
         discrete_perturbation = torch.clamp(discrete_perturbation, min=self.min_range, max=self.max_range)
         continuous_perturbation = self.continous_features_mask * torch.clamp(
@@ -141,7 +138,8 @@ class GraphPerturber(Perturber):
         )
         V_pert = discrete_perturbation + continuous_perturbation
         EP_x_discrete = self.discretize_tensor(torch.sigmoid(self.EP_x))
-        out = self.model(V_pert, self.edge_index, batch, EP_x_discrete)          
+        self.edge_index = self.edge_index.long()
+        out = self.oracle.model(V_pert, self.edge_index, EP_x_discrete, batch)          
         return out, V_pert, self.EP_x
     
     def edge_loss(self, graph: Data) -> Tuple[Tensor, Tensor]:
