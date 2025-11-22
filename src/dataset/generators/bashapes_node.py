@@ -9,6 +9,7 @@ class BAShapes(Generator):
     
     def init(self):
 
+        self.dataset_name = "BAShapes"
         self.num_instances = self.local_config['parameters'].get('num_instances', 1000)
         self.nodes_num = self.local_config['parameters'].get('nodes_num', 5) # Number of nodes in the graph
         self.edges_per_node = self.local_config['parameters'].get('edges_per_new_node', 1) # Number of edges to attach from new node to existing nodes   

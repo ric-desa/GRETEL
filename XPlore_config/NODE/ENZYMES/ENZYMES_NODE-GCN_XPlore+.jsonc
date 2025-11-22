@@ -58,7 +58,7 @@
         "change_node_feat": false,
         "gamma_node_feat": 0,
         "visualize": false,
-        "multi_label_classification": false,
+        "multi_label_classification": true,
         "node_classification": true
         }}],
     "compose_mes" : "config/snippets/node_metrics.json",

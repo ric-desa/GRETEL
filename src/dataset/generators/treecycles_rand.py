@@ -7,7 +7,8 @@ from src.dataset.instances.graph import GraphInstance
 
 class TreeCyclesRand(Generator):
     
-    def init(self):       
+    def init(self):
+        self.dataset_name = "TreeCyclesRand"    
         self.num_instances = self.local_config['parameters']['num_instances']
         self.num_nodes_per_instance = self.local_config['parameters']['num_nodes_per_instance']
         self.ratio_nodes_in_cycles = self.local_config['parameters']['ratio_nodes_in_cycles']

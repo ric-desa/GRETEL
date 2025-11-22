@@ -44,8 +44,7 @@
                     "num_conv_layers":3,
                     "num_dense_layers":1,
                     "conv_booster":2,
-                    "linear_decay":1.8,
-                    "n_classes": 10
+                    "linear_decay":1.8
                 }
               }
             }
@@ -64,7 +63,7 @@
         "change_node_feat": true,
         "gamma_node_feat": 0,
         "visualize": false,
-        "multi_label_classification": false,
+        "multi_label_classification": true,
         "node_classification": true
         }}],
     "compose_mes" : "config/snippets/node_metrics.json",

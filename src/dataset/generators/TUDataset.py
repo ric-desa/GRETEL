@@ -59,7 +59,7 @@ class TUDataset(Generator):
         # TODO edge_map, graph_map
 
         for id, instance in enumerate(data):
-            if self.dataset_name in {"COLLAB", "IMDB-MULTI", "DBLP_v1"}:
+            if self.dataset_name in {"COLLAB", "IMDB-MULTI"}:
                 # print(f"instance.num_nodes.shape: {instance.num_nodes}")
                 # input()
                 # adj_matrix = torch.zeros((instance.num_nodes, instance.num_nodes), dtype=torch.float)

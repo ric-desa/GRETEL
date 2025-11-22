@@ -51,7 +51,7 @@
       }
     ],
     "explainers": [{"class": "src.explainer.XPlore.XPlore",
-      "parameters": {"alpha": 0.1, "K": 50, "beta": 0.5, "extended": false, "multi_label_classification": false, "node_classification":true}}],
+      "parameters": {"alpha": 0.1, "K": 50, "beta": 0.5, "extended": false, "multi_label_classification": true, "node_classification":true}}],
     "compose_mes" : "config/snippets/node_metrics.json",
     "compose_strs" : "config/snippets/default_store_paths.json",
     "embedders": [

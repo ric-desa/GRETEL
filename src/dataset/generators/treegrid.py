@@ -9,6 +9,7 @@ class TreeGrid(Generator):
     
     def init(self):
 
+        self.dataset_name = "TreeGrid"
         self.num_instances = self.local_config['parameters'].get('num_instances', 1000)
         self.tree_height = self.local_config['parameters'].get('tree_height', 5)
         self.grid_size = self.local_config['parameters'].get('grid_size', (3, 3))

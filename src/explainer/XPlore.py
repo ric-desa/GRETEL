@@ -34,7 +34,7 @@ class XPlore(Explainer):
         self.γ_edges = local_params['gamma_edge'] # γ: Add missing edges to the edge perturbation matrix (γ ∈ [0, 1])
         self.update_node_feat = local_params['update_node_feat'] # Allow to update node features (gate or change them freely)
         self.change_node_feat = local_params['change_node_feat'] # Allow node features to change freely instead of just keep or discard a given feature (gating)
-        self.change_all_feat = local_params['change_all_feat'] # Allow all features to chenge freely (node, edge, graph features)
+        self.change_all_feat = local_params['change_all_feat'] # Allow all features to change freely (node, edge, graph features)
         self.γ_node_feat = local_params['gamma_node_feat'] # γ: Add missing node features to the node features perturbation matrix (γ ∈ [0, 1]) (NOT USED FOR CURRENT INITIALIZATION Ⅱ)
         self.debugging = local_params['debugging'] # Print debugging code one iteration at a time
         self.visualize = local_params['visualize'] # Visualize inital graph and CF found (if no valid CF is found then it draws the CF at last iteration)
@@ -49,7 +49,7 @@ class XPlore(Explainer):
             # self.loss_fn = torch.nn.NLLLoss() # redundant, just use CE
             self.loss_fn = torch.nn.CrossEntropyLoss()
         else: # Multi-Label Classification
-            self.loss_fn = torch.nn.BCEWithLogitsLoss() # use for Multi-Label Classification     
+            self.loss_fn = torch.nn.BCEWithLogitsLoss() # use for Multi-Label Classification   
         
         assert ((isinstance(self.K, float) or isinstance(self.K, int)) and self.K >= 1)
         assert ((isinstance(self.α, float) or isinstance(self.α, int)) and self.α > 0)
@@ -111,15 +111,21 @@ class XPlore(Explainer):
 
         if 'visualize' not in local_config['parameters']:
             local_config['parameters']['visualize'] = False
+
+        if 'dataset_classes' not in local_config['parameters']:
+            try:
+                local_config['parameters']['dataset_classes'] = self.dataset.num_classes
+            except:
+                local_config['parameters']['dataset_classes'] = 2
         
-        if 'multi_label_classification' not in local_config['parameters']:
-            local_config['parameters']['multi_label_classification'] = False
+        if 'multi_label_classification' not in local_config['parameters']:     
+            if local_config['parameters']['dataset_classes'] > 2:
+                local_config['parameters']['multi_label_classification'] = True
+            else:
+                local_config['parameters']['multi_label_classification'] = False
 
         if 'node_classification' not in local_config['parameters']:
-            local_config['parameters']['node_classification'] = False
-        
-        if 'dataset_classes' not in local_config['parameters']:
-            local_config['parameters']['dataset_classes'] = 2
+            local_config['parameters']['node_classification'] = False        
 
         if 'decay_alppha' not in local_config['parameters']:
             local_config['parameters']['decay_alpha'] = False
@@ -132,7 +138,13 @@ class XPlore(Explainer):
     def explain(self, instance):
         """
         Find a Counterfactual for ```instance```. The closest among the ones found will be returned.
-        """        
+        """
+        version = "XPlore++" if self.change_node_feat and self.update_node_feat and self.extended else "XPlore+" if self.update_node_feat and self.extended else "XPlore" if self.extended else "CF-GNNExplainer"
+        try:
+            print(f"dataset: {self.dataset.dataset_name} - {version}")
+        except:
+            print(f"dataset: Unknown - {version}")
+            
         # print(instance.data.shape)
         self.f_v = self.oracle.predict(instance).clone().detach() # Get GCN prediction
         # self.f_v = torch.tensor(self.oracle.predict(instance), dtype=torch.long) # Get GCN prediction
@@ -457,6 +469,7 @@ class XPlore(Explainer):
             inputs = self.g_v_logits # F.gumbel_softmax(self.g_v_logits, dim=-1, hard=True)
             # targets = (torch.nn.functional.one_hot(self.f_v, num_classes=self.dataset_classes).sum(dim=1)>0).float() # Create a multi-one-hot from a vector with many class labes eg. [0,2,3] -> [1,0,1,1] (mask to prevent eventual class label repetitions eg. [2,4,4,5])
             targets = torch.nn.functional.one_hot(self.f_v, num_classes=self.dataset_classes).float() # having target label for each node -> one-hot for each label
+            # print(f"targets: {targets.shape} - inputs: {inputs.shape}")
         elif isinstance(self.loss_fn, torch.nn.NLLLoss): # CE is just NNL with log+softmax included
             # print(f"self.g_v_logits: {self.g_v_logits}")
             inputs = F.log_softmax(self.g_v_logits, dim=0) # Prediction log probabilities required for NLL loss
