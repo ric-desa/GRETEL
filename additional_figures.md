@@ -4,8 +4,8 @@ We provide here additional figures for our official comment to Reviewer mmHe. Th
 ## Fig.3b) Scatter Grid: GED vs Cosine Similarity
 This figure shows a grid of scatter plots (one subplot per dataset), where each point represents an explainer’s average counterfactual (CF) performance in that dataset. The x-axis is the log₁₀ of Graph Edit Distance (GED), indicating how much the CF deviates from the original graph, while the y-axis is the Cosine Similarity (CS) of node embeddings, indicating how semantically similar the CF is to the original. Each explainer is represented by a different marker and color, consistent across all datasets. This visualization highlights the trade-off between counterfactual minimality (low GED) and semantic meanign (high CS), making it easy to compare explainers across datasets.
 
-`XPlore behaviour is in line with competing explainers, ranking in the top-3 CS on all datasets except COX2.
-Notably, XPlore achieves consistently higher CS than CF-GNNExplainer despite identifying harder counterfactuals, highlighting its stronger overall quality.`
+*XPlore behaviour is in line with competing explainers, ranking in the top-3 CS on all datasets except COX2.
+Notably, XPlore achieves consistently higher CS than CF-GNNExplainer despite identifying harder counterfactuals, highlighting its stronger overall quality.*
 
 
 ![GEDvsCS](./imgs/GEDvsCS.png)
@@ -13,8 +13,8 @@ Notably, XPlore achieves consistently higher CS than CF-GNNExplainer despite ide
 ## Add-Fig. 0) CS violin-distribution
 This figure shows violin plots of the Cosine Similarity (CS) distributions per explainer and per dataset, arranged in a grid. Each violin represents how semantically close the generated counterfactuals are to the original graph in terms of node embedding similarity, aggregated across embeddings. Consistent colors and order of explainers across subplots make it straightforward to compare semantic behavior across explainers and datasets, highlighting which explainers maintain high semantic similarity and which sacrifice it to produce more diverse or further-reaching counterfactuals.
 
-`XPlore captures both easy and hard counterfactuals, resulting in a bimodal distribution of CS and GED values. By identifying harder counterfactuals (i.e., performing better), XPlore may have lower average CS and GED scores.
-For instance, on BAS XPlore has a lower mean CS than iRand or RSGG-CE, yet it performs better on easy samples and achieves roughly double their accuracy, highlighting its effectiveness beyond simple averages.`
+*XPlore captures both easy and hard counterfactuals, resulting in a bimodal distribution of CS and GED values. By identifying harder counterfactuals (i.e., performing better), XPlore may have lower average CS and GED scores.
+For instance, on BAS XPlore has a lower mean CS than iRand or RSGG-CE, yet it performs better on easy samples and achieves roughly double their accuracy, highlighting its effectiveness beyond simple averages.*
 
 ![CS_violin](./imgs/CS_violin.png)
 
