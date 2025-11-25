@@ -125,8 +125,8 @@ class Evaluator(ABC):
                 if(metric._special):
                     if "EmbedDataset" in metric.__class__.__name__:
                         counterfactual = None
-                        ori_emb, ori_label, cf_emb, cf_label = metric.evaluate(inst, None, self._oracle,self._explainer,self._data, self.embedders)
-                        self._results[Context.get_fullname(metric)].append({"id":str(inst.id),"ori_emb":ori_emb, "ori_label":ori_label, "cf_emb":cf_emb, "cf_label":cf_label})
+                        ori_emb, ori_label, cf_emb, cf_label, cf = metric.evaluate(inst, None, self._oracle,self._explainer,self._data, self.embedders)
+                        self._results[Context.get_fullname(metric)].append({"id":str(inst.id),"ori_emb":ori_emb, "ori_label":ori_label, "cf_emb":cf_emb, "cf_label":cf_label, "cf":cf})
                     elif "SupplMetric" in metric.__class__.__name__:
                         counterfactual = None
                         oracle_acc, labels = metric.evaluate(inst, None, self._oracle,self._explainer,self._data)

@@ -15,20 +15,36 @@ class EmbedDatasetMetric(EvaluationMetric):
         self._name = 'EmbedDataset'
         self._special = True
         self.id = config_dict['parameters']['id']
+        self.stop_after_n_found = config_dict['parameters']['stop_after_n_found']
+        self.stop_explaining = False
+        self.classes_to_explain = config_dict['parameters']['classes_to_explain'] # e.g. Tree, Cycle
+        self.classes_left =  {clss:self.stop_after_n_found for clss in self.classes_to_explain}
 
     def evaluate(self, instance_1 , instance_2 , oracle : Oracle=None, explainer : Explainer=None, dataset = None, embedders:dict[Embedder]=None):
         counterfactual = None
+        counterfactual_emb = None
         cf_label = None
 
-        if instance_1.id == self.id:
+        # find CFs if a specific index is given (default -1, see config\snippets\embed_metrics.json) or find CFs for instances with labels in classes_to_explain
+        find_cf = True if ((not self.stop_explaining) and ((self.id>=0 and instance_1.id == self.id) or (instance_1.label in self.classes_to_explain and self.classes_left[instance_1.label]!=0))) else False 
+        # instance_1.label == 0 : # e.g. find CF only for trees (0) or cycles (1)
+        
+        if find_cf:
             counterfactual = explainer.explain(instance_1)
             # visualize_tree_cycle(counterfactual)
-            cf_label = counterfactual.label.item()
-            counterfactual = self.generate_emb_vector(counterfactual, embedders).tolist()
+            cf_lbl = counterfactual.label
+            cf_label = cf_lbl if isinstance(cf_lbl, int) else counterfactual.label.item()
+            # print(f"Finding CF for class {instance_1.label} --> {cf_label}");input('press to continue…')
+            counterfactual_emb = self.generate_emb_vector(counterfactual, embedders).tolist()
+            if cf_lbl!=instance_1.label:    
+                self.classes_left[instance_1.label] -= 1    # decrement the instances left to explain for the specific class
+                if all(self.classes_left[clss]==0 for clss in self.classes_to_explain):  
+                    self.stop_explaining = True                 # stop after n CF found for each class (ignore if negative)
+                    print(f"{self.stop_after_n_found} CFs found for classes in {self.classes_to_explain} | Explaining stopped")
         
         original_embedding = self.generate_emb_vector(instance_1, embedders).tolist()
 
-        return original_embedding, instance_1.label, counterfactual, cf_label
+        return original_embedding, instance_1.label, counterfactual_emb, cf_label, counterfactual
     
     def generate_emb_vector(self, inst, embedders):
         embeddings_list = []

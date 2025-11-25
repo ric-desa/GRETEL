@@ -1,6 +1,6 @@
 {  
     "experiment" : {
-        "scope": "EMBED/TCR/XPlore++",
+        "scope": "EMBED/TCR/WaveletCharacteristic/XPlore",
         "parameters" : {
             "lock_release_tout":120,
             "propagate":[
@@ -21,7 +21,7 @@
         "update_node_feat": true,
         "change_node_feat": true,
         "gamma_node_feat": 0,
-        "visualize": true}}],
+        "visualize": false}}],
     "compose_mes" : "config/snippets/embed_metrics.json", 
     "compose_strs" : "config/snippets/default_store_paths.json",
     "embedders": [
