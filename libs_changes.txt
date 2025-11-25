@@ -1,0 +1,4 @@
+\envs\gretel\Lib\site-packages\gensim\matutils.py
+\envs\gretel\Lib\site-packages\karateclub\graph_embedding\ige.py
+\envs\gretel\Lib\site-packages\networkx\linalg\laplacianmatrix.py
+karateclub needs to be updated (done with pip+conda forge) to include WaveletCharecteristicEmbedder

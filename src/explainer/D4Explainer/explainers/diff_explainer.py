@@ -477,7 +477,7 @@ class DiffExplainer(ExplainerD4, Trainable, Explainer):
         args = self.args
         model = Powerful(args).to(args.device)
         exp_dir = f"{args.root}/{args.dataset}/"
-        model.load_state_dict(torch.load(os.path.join(exp_dir, "best_model.pth"))["model"])
+        model.load_state_dict(torch.load(os.path.join(exp_dir, "best_model_forreal.pth"))["model"])
         model.eval()
         # graph.to(args.device)
         # print(graph.data); input()
@@ -601,7 +601,7 @@ class DiffExplainer(ExplainerD4, Trainable, Explainer):
         self.local_config['parameters']['train_batchsize'] = self.local_config['parameters'].get('train_batchsize', 32)
         self.local_config['parameters']['test_batchsize'] = self.local_config['parameters'].get('test_batchsize', 32)
         self.local_config['parameters']['sigma_length'] = self.local_config['parameters'].get('sigma_length', 10)
-        self.local_config['parameters']['epoch'] = self.local_config['parameters'].get('epoch', 10)
+        self.local_config['parameters']['epoch'] = self.local_config['parameters'].get('epoch', 0)
         self.local_config['parameters']['feature_in'] = self.local_config['parameters'].get('feature_in', len(self.dataset.node_features_map))
         self.local_config['parameters']['data_size'] = self.local_config['parameters'].get('data_size', -1)
         self.local_config['parameters']['threshold'] = self.local_config['parameters'].get('threshold', 0.5)
@@ -616,7 +616,7 @@ class DiffExplainer(ExplainerD4, Trainable, Explainer):
         self.local_config['parameters']['normalization'] = self.local_config['parameters'].get('normalization', 'instance')
         self.local_config['parameters']['num_layers'] = self.local_config['parameters'].get('num_layers', 6)
         self.local_config['parameters']['layers_per_conv'] = self.local_config['parameters'].get('layers_per_conv', 1)
-        self.local_config['parameters']['n_hidden'] =  self.local_config['parameters'].get('n_hidden', 2)
+        self.local_config['parameters']['n_hidden'] =  self.local_config['parameters'].get('n_hidden', 128)
         self.local_config['parameters']['cat_output'] = self.local_config['parameters'].get('cat_output', True)
         self.local_config['parameters']['residual'] = self.local_config['parameters'].get('residual', False)
         self.local_config['parameters']['noise_mlp'] = self.local_config['parameters'].get('noise_mlp', True)

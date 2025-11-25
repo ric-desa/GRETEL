@@ -16,3 +16,12 @@
 @REM python main.py XPlore_config\NODE\BZR\BZR_NODE-GCN_XPlore.jsonc
 @REM python main.py XPlore_config\NODE\BZR\BZR_NODE-GCN_XPlore++.jsonc
 
+@REM python main.py XPlore_config\EMBED\TCR\SF\TCR-5000-28-0.3_GCN_XPlore.jsonc
+@REM python main.py XPlore_config\EMBED\TCR\SF\TCR-5000-28-0.3_GCN_CF-GNNE.jsonc
+@REM python main.py XPlore_config\EMBED\TCR\SF\TCR-5000-28-0.3_GCN_RSGG.jsonc
+@REM python main.py XPlore_config\EMBED\TCR\SF\TCR-5000-28-0.3_GCN_CLEAR.jsonc
+
+python main.py XPlore_config\EMBED\TCR\Wavelet\TCR-5000-28-0.3_GCN_XPlore.jsonc
+python main.py XPlore_config\EMBED\TCR\Wavelet\TCR-5000-28-0.3_GCN_CF-GNNE.jsonc
+python main.py XPlore_config\EMBED\TCR\Wavelet\TCR-5000-28-0.3_GCN_RSGG.jsonc
+python main.py XPlore_config\EMBED\TCR\Wavelet\TCR-5000-28-0.3_GCN_CLEAR.jsonc
