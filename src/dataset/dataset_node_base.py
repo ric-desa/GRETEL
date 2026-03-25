@@ -241,7 +241,8 @@ class Dataset(Savable):
         # Create an instance of the specified dataset class with the given instances and additional arguments
         self._torch_repr = get_class(dataset_kls)(self.instances, **kwargs)
         # Return a Subset of the dataset instances based on the filtered indices
-        return Subset(self._torch_repr.instances, indices)
+        # return Subset(self._torch_repr.instances, indices)
+        return Subset(self._torch_repr, indices) # Fix for using a fold
     
     def read(self):
         if self.saved():

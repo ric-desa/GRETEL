@@ -4,6 +4,8 @@ from src.core.explainer_base import Explainer
 from src.core.embedder_base import Embedder
 
 from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.preprocessing import normalize
+import numpy as np
 
 
 class CosineSimilarityMetric(EvaluationMetric):
@@ -31,14 +33,24 @@ class CosineSimilarityMetric(EvaluationMetric):
         similarity_results = {}
 
         for embedder in embedders.values():
-            embeddings = embedder.infer([instance_1, instance_2])
+            try:
+                embeddings = embedder.infer([instance_1, instance_2])
             
-            # Reshape the embeddings if necessary to be 2D arrays
-            emb1 = embeddings[0].reshape(1, -1)
-            emb2 = embeddings[1].reshape(1, -1)
-            
-            # Compute cosine similarity between the two embeddings
-            cos_sim = cosine_similarity(emb1, emb2)[0][0]
-            similarity_results[embedder.__class__.__name__] = float(cos_sim)
+                # Reshape the embeddings if necessary to be 2D arrays
+                emb1 = self.safe_embedding(embeddings[0].reshape(1, -1))
+                emb2 = self.safe_embedding(embeddings[1].reshape(1, -1))
+                
+                # Compute cosine similarity between the two embeddings
+                cos_sim = cosine_similarity(emb1, emb2)[0][0]
+                similarity_results[embedder.__class__.__name__] = float(cos_sim)
+            except Exception:
+                similarity_results[embedder.__class__.__name__] = 0.0
 
         return similarity_results
+    
+    def safe_embedding(self, emb):
+        if np.isnan(emb).any():
+            # replace NaNs by 0 (or another neutral value)
+            emb = np.nan_to_num(emb, nan=0.0)
+        # normalize to unit vector (important for cosine)
+        return normalize(emb.reshape(1, -1))

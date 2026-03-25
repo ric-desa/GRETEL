@@ -20,10 +20,14 @@ class BaseManipulator(Configurable):
             graph_features_map = self.graph_info(instance)
             self.manipulate_features_maps((node_features_map, edge_features_map, graph_features_map))
             # overriding the features
+            # print("Dataset manipulator - before")
+            # print("instance.node_features:\n", instance.node_features, "node_features_map:\n", node_features_map, "self.dataset.node_features_map:\n", self.dataset.node_features_map)
+            # input()
             # resize in num_nodes x feature dim
             instance.node_features = self.process_features(instance.node_features, node_features_map, self.dataset.node_features_map)
             instance.edge_features = self.process_features(instance.edge_features, edge_features_map, self.dataset.edge_features_map)
             instance.graph_features = self.process_features(instance.graph_features, graph_features_map, self.dataset.graph_features_map)
+
 
            
 
@@ -33,10 +37,16 @@ class BaseManipulator(Configurable):
         graph_features_map = self.graph_info(instance)
         self.manipulate_features_maps((node_features_map, edge_features_map, graph_features_map))
         # overriding the features
+        # print("Dataset manipulator - before")
+        # print("instance.node_features:\n", instance.node_features, "node_features_map:\n", node_features_map, "self.dataset.node_features_map:\n", self.dataset.node_features_map)
+        # input()
         # resize in num_nodes x feature dim
         instance.node_features = self.process_features(instance.node_features, node_features_map, self.dataset.node_features_map)
         instance.edge_features = self.process_features(instance.edge_features, edge_features_map, self.dataset.edge_features_map)
         instance.graph_features = self.process_features(instance.graph_features, graph_features_map, self.dataset.graph_features_map)
+        # print("Dataset manipulator - after")
+        # print("instance.node_features:\n", instance.node_features, "node_features_map:\n", node_features_map, "self.dataset.node_features_map:\n", self.dataset.node_features_map)
+        # input()
 
        
     def node_info(self, instance):

@@ -37,9 +37,9 @@ class TUDataset(Generator):
             if not exists(join(base_path, f'{self.dataset_name}.pkl')):
                 torch.save(dataset, join(base_path, f'{self.dataset_name}.pkl'))
                 self.context.logger.info(f"Saved dataset {self.dataset_name} in {join(base_path, f'{self.dataset_name}.pkl')}.")
-        return base_path        
-       
-    
+        return base_path
+
+
     def init(self):
         self.dataset_name = self.local_config['parameters']['alias']
         base_path = self.prepare_data()
@@ -52,16 +52,18 @@ class TUDataset(Generator):
             self.populate()
 
     def populate(self):
-        print(f"file: {self.read_file}")
+        # print(f"file: {self.read_file}")
+        DATASETS_WITOHOUT_NODE_ATTR = {"DBLP_v1", "TWITTER-Real-Graph-Partial", "MSRC_21"}
         data = torch.load(self.read_file, weights_only=False)
-        features_map = {f'attribute_{i}': i for i in range(data[0].x.size(1))} if self.dataset_name not in {"COLLAB", "IMDB-MULTI"} else {f'attribute_{i}': i for i in range(data[0].num_nodes)}
+        features_map = {f'attribute_{i}': i for i in range(data[0].x.size(1))} if self.dataset_name not in DATASETS_WITOHOUT_NODE_ATTR else {f'attribute_{i}': i for i in range(data[0].num_nodes)}
         self.dataset.node_features_map = features_map
 
         # TODO edge_map, graph_map
 
         # Collect all node labels of the dataset to build a consistent mapping
         DATASET_NODE_ATTR = {"BZR": 3, "ENZYMES": 18}
-        if self.dataset_name == "DBLP_v1":
+        DATASET_NODE_ATTR.update({name: 0 for name in DATASETS_WITOHOUT_NODE_ATTR})
+        if self.dataset_name in {"DBLP_v1"}:
             # x already contains single integer labels
             num_attr = 0
             all_node_labels = []
@@ -78,8 +80,10 @@ class TUDataset(Generator):
         unique_labels = sorted(set(all_node_labels))
         global_mapping = {v: i for i, v in enumerate(unique_labels)}
         self.dataset._class_indices = {i: [] for i in range(len(unique_labels))} # Set correct number of classes for dataset
-        self.dataset.num_classes = len(unique_labels)
-        print(f"Global node label mapping for {self.dataset_name}: {global_mapping}")
+        # self.dataset.num_classes = len(unique_labels)
+        # print(f"Global node label mapping for {self.dataset_name}: {global_mapping}")
+        print(f"Number of classes for {self.dataset_name}: {len(self.dataset._class_indices.keys())}")
+        # input()
 
         for id, instance in enumerate(data):
 
@@ -88,28 +92,33 @@ class TUDataset(Generator):
             # print(f"dict: {instance.__dict__}")
             # input()
 
-            if self.dataset_name in {"COLLAB", "IMDB-MULTI", "DBLP_v1"}:
+            raw_node_labels = instance.x[:, num_attr:].argmax(dim=1).numpy()
+            raw_node_labels = np.array([global_mapping[v] for v in raw_node_labels], dtype=int)
+            # print(id, raw_node_labels.shape, instance.x.shape)
+            # input()
+
+            if self.dataset_name in DATASETS_WITOHOUT_NODE_ATTR:
                 # adj_matrix = torch.zeros((instance.num_nodes, instance.num_nodes), dtype=torch.float)
                 instance.x = torch.zeros((instance.num_nodes, 1))
             adj_matrix = torch.zeros((instance.x.size(0), instance.x.size(0)), dtype=torch.float)
-            adj_matrix[instance.edge_index[0], instance.edge_index[1]] = 1.0 
+            adj_matrix[instance.edge_index[0], instance.edge_index[1]] = 1.0
 
             if adj_matrix.shape[0] == 0:
                 print(f"Skipping instance {id} with empty adjacency matrix.")
                 continue
-            
+
             edge_features = None
             try:
                 edge_features = instance.edge_weights.numpy()
             except AttributeError:
                 self.context.logger.info(f'Instance id = {id} does not have edge features.')
-            
-            node_labels = instance.x[:, num_attr:].argmax(dim=1).numpy()
-            node_labels = np.array([global_mapping[v] for v in node_labels], dtype=int)
+
+            # node_labels = instance.x[:, num_attr:].argmax(dim=1).numpy()
+            # node_labels = np.array([global_mapping[v] for v in node_labels], dtype=int)
             # print(f"node labels: {node_labels}")
 
-            self.dataset.instances.append(GraphInstance(id=id, 
-                                                        label=node_labels, 
+            self.dataset.instances.append(GraphInstance(id=id,
+                                                        label=raw_node_labels,
                                                         data=adj_matrix.numpy(),
                                                         graph_features=None,
                                                         node_features=instance.x.numpy(),

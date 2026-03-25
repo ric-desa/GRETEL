@@ -29,15 +29,16 @@ class TorchBase(Trainable):
         
         self.lr_scheduler =  lr_scheduler.LinearLR(self.optimizer, start_factor=1.0, end_factor=0.5, total_iters=self.epochs)
 
+        self.device = self.local_config['parameters']['device']
         
-        self.device = (
-            "cuda"
-            if torch.cuda.is_available()
-            else "mps"
-            if torch.backends.mps.is_available()
-            else "cpu"
-        )
-        self.model.to(self.device) 
+        # print(torch.cuda.device_count())
+        # print(torch.cuda.current_device())
+        # print(torch.cuda.get_device_name(torch.cuda.current_device()))
+
+        self.model.to(self.device)
+        for param in self.model.parameters():
+            param.data = param.data.to(self.device)
+        print(f"Using device: {self.device}") 
         
         self.patience = 0                           
     
@@ -47,7 +48,8 @@ class TorchBase(Trainable):
         train_loader, val_loader = None, None
         
         if self.early_stopping_threshold:
-            num_instances = len(self.dataset.instances)
+            # num_instances = len(self.dataset.instances)
+            num_instances = len(instances)
             # print(f'num_instances: {num_instances}')
             # get 5% of training instances and reserve them for validation
             indices = list(range(num_instances))
@@ -56,7 +58,8 @@ class TorchBase(Trainable):
             train_size = len(indices) - val_size
             # print(f'val_size, train_size: {val_size, train_size}')
             # get the training instances
-            train_instances = Subset(instances, indices[:train_size - 1])
+            # train_instances = Subset(instances, indices[:train_size - 1])
+            train_instances = Subset(instances, indices[:train_size])
             val_instances = Subset(instances, indices[train_size:])
             # get the train and validation loaders
             train_loader = DataLoader(train_instances, batch_size=self.batch_size, shuffle=True, drop_last=True)
@@ -70,6 +73,8 @@ class TorchBase(Trainable):
             losses, preds, labels_list = [], [], []
             self.model.train()
             for batch in train_loader:
+                # print("batch.shape:", batch.batch.shape)
+                # print("unique graphs in batch:", batch.batch.unique())
                 batch.batch = batch.batch.to(self.device)
                 node_features = batch.x.to(self.device)
                 edge_index = batch.edge_index.to(self.device)
@@ -146,6 +151,12 @@ class TorchBase(Trainable):
         # populate the optimizer
         init_dflts_to_of(local_config, 'optimizer', 'torch.optim.Adam',lr=0.001)
         init_dflts_to_of(local_config, 'loss_fn', 'torch.nn.BCELoss')
+        local_config['parameters']['device'] = local_config['parameters'].get('device', (
+            "cuda"
+            if torch.cuda.is_available() or torch.cuda.device_count()
+            else "mps"
+            if torch.backends.mps.is_available()
+            else "cpu"))
         
     def accuracy(self, testy, probs):
         # print(testy[:10], probs[:10])

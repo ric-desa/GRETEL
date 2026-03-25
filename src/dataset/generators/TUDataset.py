@@ -52,14 +52,15 @@ class TUDataset(Generator):
             self.populate()
 
     def populate(self):
+        DATASETS_WITOHOUT_NODE_ATTR = {"COLLAB", "IMDB-MULTI", "IMDB-BINARY"}
         data = torch.load(self.read_file)
-        features_map = {f'attribute_{i}': i for i in range(data[0].x.size(1))} if self.dataset_name not in {"COLLAB", "IMDB-MULTI"} else {f'attribute_{i}': i for i in range(data[0].num_nodes)}
+        features_map = {f'attribute_{i}': i for i in range(data[0].x.size(1))} if self.dataset_name not in DATASETS_WITOHOUT_NODE_ATTR else {f'attribute_{i}': i for i in range(data[0].num_nodes)}
         self.dataset.node_features_map = features_map
 
         # TODO edge_map, graph_map
 
         for id, instance in enumerate(data):
-            if self.dataset_name in {"COLLAB", "IMDB-MULTI"}:
+            if self.dataset_name in DATASETS_WITOHOUT_NODE_ATTR:
                 # print(f"instance.num_nodes.shape: {instance.num_nodes}")
                 # input()
                 # adj_matrix = torch.zeros((instance.num_nodes, instance.num_nodes), dtype=torch.float)

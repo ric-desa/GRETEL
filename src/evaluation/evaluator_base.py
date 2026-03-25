@@ -123,6 +123,7 @@ class Evaluator(ABC):
 
             for metric in self._evaluation_metrics:
                 if(metric._special):
+                    # print("metric is special")
                     if "EmbedDataset" in metric.__class__.__name__:
                         counterfactual = None
                         ori_emb, ori_label, cf_emb, cf_label, cf = metric.evaluate(inst, None, self._oracle,self._explainer,self._data, self.embedders)
@@ -136,6 +137,7 @@ class Evaluator(ABC):
                         self._results[Context.get_fullname(metric)].append({"id":str(inst.id),"value":val})
                         self._explanations.append(counterfactual)
     
+            # print(f"counterfactual is: {counterfactual}")
             self._real_evaluate(inst, counterfactual,self._oracle,self._explainer,self._data)
             self._logger.info('evaluated instance with id %s', str(inst.id))
 
@@ -167,7 +169,7 @@ class Evaluator(ABC):
                       "oracle":self._oracle.name,
                       "explainer":self._explainer.name
                       }
-        
+
         self._complete['hash_ids']=hash_info
 
         output_path = join(self._results_store_path, self._scope)
@@ -183,6 +185,20 @@ class Evaluator(ABC):
         makedirs(output_path, exist_ok=True)
 
         results_uri = join(output_path, f'results_{fold_id}_{self._run_number}.json')
+        # print(results_uri)
+        # print("CWD:", os.getcwd())
+        # print("Writing to:", results_uri)
+        # print("Exists:", os.path.exists(os.path.dirname(results_uri)))
+        import unicodedata, os
+        # print("NFD:", unicodedata.normalize("NFD", self._explainer.name))
+        # print("NFC:", unicodedata.normalize("NFC", self._explainer.name))
+
+        def clean(s):
+            return unicodedata.normalize("NFKC", s)
+        
+        results_uri = clean(results_uri)
+        if os.name == 'nt' and len(os.path.abspath(results_uri)) >= 260:
+            results_uri = r'\\?\\' + os.path.abspath(results_uri)
 
         with open(results_uri, 'w') as results_writer:
             results_writer.write(encode(self._complete))

@@ -28,6 +28,41 @@ class RSGG(PerClassExplainer):
                                               embedded_features=embedded_features,
                                               edge_probabilities=edge_probs)
             
+            if cf_instance:
+                import networkx as nx, matplotlib.pyplot as plt
+                pos = nx.spring_layout(nx.from_numpy_array(instance.data)) # Fix graph orientation
+                instance_graph = nx.from_numpy_array(instance.data)
+                CF_graph = nx.from_numpy_array(cf_instance.data)
+                fig, axes = plt.subplots(1, 2, figsize=(12, 6))
+                nx.draw(instance_graph, pos=pos, ax=axes[0], with_labels=True, cmap='cool', node_color=instance.node_features.mean(axis=1), edge_color='gray')
+                axes[0].set_title(f"Initial Graph | Predicted Class: {instance.label}")
+                nx.draw(CF_graph, pos=pos, ax=axes[1], with_labels=True, cmap='cool', node_color=cf_instance.node_features.mean(axis=1), edge_color='gray')
+                axes[1].set_title(f"Counterfactual Graph | Predicted Class: {cf_instance.label}")
+                fig.suptitle(f"True label: {instance.label}")
+                plt.show()
+
+                save = input("save graph? (y/n): ")
+            
+                if save.lower() == "y":
+
+                    oracle_name = str(self.oracle.model.__class__).split('.')[-2]
+                    # G = nx.from_numpy_array(instance.data)
+
+                    # for i, feat in enumerate(instance.node_features):
+                    #     # print(feat.mean())
+                    #     G.nodes[i]["Feature"] = feat.mean()
+
+                    # nx.write_gexf(G, f"C:\\Users\\ACER\Documents\\CS\\Thesis\\Media\\Counterfactual Visualization\\{instance.id}-RSGGCE-original.gexf")
+
+                    G = nx.from_numpy_array(cf_instance.data)
+
+                    for i, feat in enumerate(cf_instance.node_features):
+                        # print(feat.mean())
+                        G.nodes[i]["Feature"] = feat.mean()
+
+                    nx.write_gexf(G, f"C:\\Users\\ACER\Documents\\CS\\Thesis\\Media\\Counterfactual Visualization\\{instance.id}-RSGGCE-{oracle_name}.gexf")
+
+            
         return cf_instance if cf_instance else instance
     
     def check_configuration(self):

@@ -3,6 +3,7 @@ from copy import deepcopy
 
 import networkx as nx
 import numpy as np
+import torch
 
 from src.dataset.instances.base import DataInstance
 
@@ -21,8 +22,10 @@ class GraphInstance(DataInstance):
 
         num_nodes = self.data.shape[0]
         num_edges = np.count_nonzero(self.data)
-        # if len(self.edge_features) != num_edges: print("graph.py: ", len(self.edge_features), num_edges)
-        if len(self.node_features) != num_nodes: print("graph.py: ", len(self.node_features), num_nodes)
+        # print(f"num_nodes: {num_nodes}")
+        # print(f"num_edges: {num_edges}")
+        # if len(self.edge_features) != num_edges: print("GraphInstance: ", len(self.edge_features), num_edges)
+        if len(self.node_features) != num_nodes: print("GraphInstance node_features dim is wrong: ", len(self.node_features), num_nodes)
         assert len(self.node_features) == num_nodes
         assert len(self.edge_features) == num_edges
         assert len(self.edge_weights) == num_edges

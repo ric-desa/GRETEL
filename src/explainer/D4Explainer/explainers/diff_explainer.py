@@ -463,8 +463,12 @@ class DiffExplainer(ExplainerD4, Trainable, Explainer):
                     best_sparsity = mean_test_sparsity
                     model_save(args, model, mean_train_loss, best_sparsity, mean_test_acc)
                     saved = True
+                if not saved:
+                    best_sparsity = mean_test_sparsity
+                    model_save(args, model, mean_train_loss, best_sparsity, mean_test_acc)
+                    saved = True
         if not saved:
-            model_save(args, model, mean_train_loss, best_sparsity, mean_test_acc)
+            model_save(args, model, mean_train_loss, best_sparsity, mean_test_acc:=None)
 
     def explain(self, graph):
         """
@@ -477,7 +481,7 @@ class DiffExplainer(ExplainerD4, Trainable, Explainer):
         args = self.args
         model = Powerful(args).to(args.device)
         exp_dir = f"{args.root}/{args.dataset}/"
-        model.load_state_dict(torch.load(os.path.join(exp_dir, "best_model_forreal.pth"))["model"])
+        model.load_state_dict(torch.load(os.path.join(exp_dir, "best_model.pth"))["model"])
         model.eval()
         # graph.to(args.device)
         # print(graph.data); input()
@@ -601,7 +605,7 @@ class DiffExplainer(ExplainerD4, Trainable, Explainer):
         self.local_config['parameters']['train_batchsize'] = self.local_config['parameters'].get('train_batchsize', 32)
         self.local_config['parameters']['test_batchsize'] = self.local_config['parameters'].get('test_batchsize', 32)
         self.local_config['parameters']['sigma_length'] = self.local_config['parameters'].get('sigma_length', 10)
-        self.local_config['parameters']['epoch'] = self.local_config['parameters'].get('epoch', 0)
+        self.local_config['parameters']['epoch'] = self.local_config['parameters'].get('epoch', 5)
         self.local_config['parameters']['feature_in'] = self.local_config['parameters'].get('feature_in', len(self.dataset.node_features_map))
         self.local_config['parameters']['data_size'] = self.local_config['parameters'].get('data_size', -1)
         self.local_config['parameters']['threshold'] = self.local_config['parameters'].get('threshold', 0.5)

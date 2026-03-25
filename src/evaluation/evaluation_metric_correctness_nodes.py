@@ -1,7 +1,7 @@
 from src.evaluation.evaluation_metric_base import EvaluationMetric
 from src.core.oracle_base import Oracle
 from src.core.explainer_base import Explainer
-from src.evaluation.evaluation_metric_ged import GraphEditDistanceMetric
+from src.evaluation.evaluation_metric_ged_nodes import GraphEditDistanceNodesMetric
 
 
 
@@ -13,7 +13,7 @@ class CorrectnessNodesMetric(EvaluationMetric):
     def __init__(self, config_dict=None) -> None:
         super().__init__(config_dict)
         self._name = 'Correctness'
-        self._ged = GraphEditDistanceMetric()
+        self._ged = GraphEditDistanceNodesMetric()
 
     def evaluate(self, instance_1 , instances_2 , oracle : Oracle=None, explainer : Explainer=None, dataset = None):
         r=[]
