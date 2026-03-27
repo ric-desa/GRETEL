@@ -21,7 +21,7 @@ Be sure to have installed all requirements and the correct version of the librar
 [![Python](https://img.shields.io/badge/Python-3.8%2B-green?style=flat-square&logo=python)](https://www.python.org/)
 <!-- [![OpenReview](https://img.shields.io/badge/OpenReview-ICLR%202026-blue?style=flat-square)](https://openreview.net/forum?id=L4KJT9QpqE) -->
 
-<img src="imgs\Interpretability_t-sne.jpg" alt="Photo" width="50%" />
+<img src="imgs\Interpretability_t-sne.jpg" alt="Photo" width="100%" />
 
 **Gradient-guided counterfactual explanations for Graph Neural Networks via comprehensive input perturbation.**
 
