@@ -1,6 +1,6 @@
 {  
     "experiment": {
-        "scope": "GRAPH/AIDS/XPlore",
+        "scope": "GRAPH/AIDS/XPlore*",
         "parameters": {
             "lock_release_tout":120,
             "propagate":[
@@ -57,8 +57,8 @@
         {
             "class": "src.explainer.XPlore.XPlore",
             "parameters": {
-                "learning_rate": 0.1,
-                "K": 50,
+                "learning_rate": 1e0,
+                "K": 500,
                 "beta": 0.5,
                 "extended": true,
                 "gamma_edge": 0,

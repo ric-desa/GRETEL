@@ -6,7 +6,7 @@
     "configurations": [
         {
             "name": "ENSEMBLE_RESULTS.jsonc",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "program": "main.py",
             "console": "integratedTerminal",
@@ -15,7 +15,7 @@
         },
         {
             "name": "CLEAR_debug.jsonc",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "program": "main.py",
             "console": "integratedTerminal",
@@ -24,7 +24,7 @@
         },
         {
             "name": "TCR-150-100-0.3+TCC+iRand.jsonc",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "program": "main.py",
             "console": "integratedTerminal",
@@ -33,7 +33,7 @@
         },
         {
             "name": "BBBP_KNN-MOL_DCE",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "program": "main.py",
             "console": "integratedTerminal",
@@ -42,7 +42,7 @@
         },
         {
             "name": "Python: Current File with profiler",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "module": "cProfile",
             "console": "integratedTerminal",
@@ -52,16 +52,29 @@
         },
         {
             "name": "Python: Current File",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": true,
-            "args": ["config/test/test_TC.json", "1"],
+            // "cwd": "${workspaceFolder}",
+            // "env": { "PYTHONPATH": "${workspaceFolder}" },
+            "args": ["XPlore_config\\ORACLE\\TCR\\TCR-50000-16-0.5_GAT_XPlore.jsonc", "1"]
+        },
+        {
+            "name": "Python: Main File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/main.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            // "cwd": "${workspaceFolder}",
+            // "env": { "PYTHONPATH": "${workspaceFolder}" },
+            "args": ["${input:configFile}", "${input:runMode}"]
         },
         {
             "name": "RSGG_ASD",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "program": "main.py",
             "console": "integratedTerminal",
@@ -70,12 +83,26 @@
         },
         {
             "name": "TWITTER_TEST",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "program": "main.py",
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": ["config/new_datasets/TWITTER_DCE.json", "1"],
         }             
-    ]
+    ],
+    "inputs": [
+    {
+      "id": "configFile",
+      "type": "promptString",
+      "description": "Path to config file",
+      "default": "XPlore_config\\ORACLE\\IMDB\\IMDB_GAT_XPlore.jsonc"
+    },
+    {
+      "id": "runMode",
+      "type": "promptString",
+      "description": "Run mode (e.g. 1)",
+      "default": "1"
+    }
+  ]
 }

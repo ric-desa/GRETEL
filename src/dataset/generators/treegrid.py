@@ -76,7 +76,7 @@ class TreeGrid(Generator):
                 features = np.ones(num_nodes)
                 draw_graph = tree
 
-            if False:
+            if False: # Visualize the graph
                 nx.draw(draw_graph, with_labels=True, node_color=features, cmap=plt.cm.cool, edge_color='gray')
                 plt.show()
             

@@ -13,7 +13,7 @@ class FidelityFullMetric(EvaluationMetric):
         super().__init__(config_dict)
         self._name = 'FidelityFull'
 
-    def evaluate(self, instance_1 , instance_2 , oracle : Oracle=None, explainer : Explainer=None, dataset = None):
+    def evaluate_full(self, instance_1 , instance_2 , oracle : Oracle=None, explainer : Explainer=None, dataset = None):
 
         self.device = oracle.device
 
@@ -38,6 +38,21 @@ class FidelityFullMetric(EvaluationMetric):
         edge_index_full_2 = adj_2.nonzero(as_tuple=False).T
         label_instance_2 = torch.argmax(oracle.model(torch.tensor(instance_2.node_features, dtype=torch.double, device=self.device), edge_index_full_2, edge_weights_full_2, self.batch).clone().detach(), dim=-1).squeeze(-1) 
 
+        prediction_fidelity = 1 if (label_instance_1 == instance_1.label) else 0
+        
+        counterfactual_fidelity = 1 if (label_instance_2 == instance_1.label) else 0
+
+        result = prediction_fidelity - counterfactual_fidelity
+        
+        return result
+    
+    def evaluate(self, instance_1 , instance_2 , oracle : Oracle=None, explainer : Explainer=None, dataset = None):
+
+        self.device = oracle.device
+
+        label_instance_1 = oracle.predict(instance_1)
+        label_instance_2 = oracle.predict(instance_2)
+        
         prediction_fidelity = 1 if (label_instance_1 == instance_1.label) else 0
         
         counterfactual_fidelity = 1 if (label_instance_2 == instance_1.label) else 0

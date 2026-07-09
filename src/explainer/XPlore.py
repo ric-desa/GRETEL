@@ -10,6 +10,9 @@ from src.utils.cfg_utils import retake_oracle
 from src.dataset.manipulators.base import BaseManipulator
 from src.dataset.manipulators.centralities import NodeCentrality
 from tqdm import tqdm
+from rdkit import Chem
+from rdkit.Chem import Draw, AllChem
+import os
 
 import src.oracle.nn.torch_diffusion
 
@@ -29,6 +32,8 @@ class XPlore(Explainer):
         """
         # input("Training Complete")
         self.oracle = retake_oracle(self.local_config)
+        self.manipulators = [type(m).__name__ for m in self.dataset.manipulators]
+        self.CHEMICAL_DATASETS = {"MUTAG", "Mutagenicity", "AIDS", "BZR", "COX2", "BBBP", "DHFR", "PTC_MR", "PTC_FM", "PTC_FR", "PTC_MM", "NCI1", "NCI109"}
         
         local_params = self.local_config['parameters']
         self.α = local_params['alpha'] # α: Learning Rate
@@ -41,14 +46,19 @@ class XPlore(Explainer):
         self.change_all_feat = local_params['change_all_feat'] # Allow all features to change freely (node, edge, graph features)
         self.γ_node_feat = local_params['gamma_node_feat'] # γ: Add missing node features to the node features perturbation matrix (γ ∈ [0, 1]) (NOT USED FOR CURRENT INITIALIZATION Ⅱ)
         self.debugging = local_params['debugging'] # Print debugging code one iteration at a time
-        self.visualize = local_params['visualize'] # Visualize inital graph and CF found (if no valid CF is found then it draws the CF at last iteration)
+        self.visualize = local_params['visualize'] # Visualize initial graph and CF found (if no valid CF is found then it draws the CF at last iteration)
+        self.vis_id = local_params['vis_id'] # Graph to visualize if self.visualize is true
         self.multi_label_classification = local_params['multi_label_classification'] # Whether target classification is multi-class
         self.dataset_classes = local_params['dataset_classes'] # Dataset classes/labels amount
         self.node_classification = local_params['node_classification'] # Whether to apply node classification
         self.decay_α = local_params['decay_alpha'] # Wheter to decay learning rate (α) during explainer iterations
+        # print(f"self.decay_α: {self.decay_α}")
+        # print(f"learning rate: {self.α}")
         self.directed = local_params['directed'] # Wheter the graph is directed or undirected
         self.device = local_params['device']
         print(f"self.oracle.device: {self.oracle.device}")
+        self.chem_flag = local_params.get('chem_flag', False)    
+
 
         if not self.multi_label_classification:
             # self.loss_fn = torch.nn.BCELoss() # useless as model outputs more than one logits
@@ -70,6 +80,7 @@ class XPlore(Explainer):
         assert ((isinstance(self.γ_node_feat, float) or isinstance(self.γ_node_feat, int)) and 0 <= self.γ_node_feat <= 1)
         assert (isinstance(self.debugging, bool))
         assert (isinstance(self.visualize, bool))
+        assert (isinstance(self.vis_id, int))
         assert (isinstance(self.multi_label_classification, bool))
         assert (isinstance(self.node_classification, bool))
         assert (isinstance(self.dataset_classes, int))
@@ -120,6 +131,9 @@ class XPlore(Explainer):
 
         if 'visualize' not in local_config['parameters']:
             local_config['parameters']['visualize'] = False
+        
+        if 'vis_id' not in local_config['parameters']:
+            local_config['parameters']['vis_id'] = -1
 
         if 'dataset_classes' not in local_config['parameters']:
             try:
@@ -136,7 +150,7 @@ class XPlore(Explainer):
         if 'node_classification' not in local_config['parameters']:
             local_config['parameters']['node_classification'] = False        
 
-        if 'decay_alppha' not in local_config['parameters']:
+        if 'decay_alpha' not in local_config['parameters']:
             local_config['parameters']['decay_alpha'] = False
 
         if 'directed' not in local_config['parameters']:
@@ -156,13 +170,18 @@ class XPlore(Explainer):
         """
         Find a Counterfactual for ```instance```. The closest among the ones found will be returned.
         """
+        # if instance.id > 10: input() #XXX
+        # if instance.id < 500: return instance #XXX      
+        if self.visualize and instance.id != self.vis_id and self.vis_id != -1:
+            return instance
+
         self.oracle.model.eval()
         self.oracle.model.to(self.device)
 
         # instance.node_features = np.zeros_like(instance.node_features)
         # version = "XPlore++" if self.change_node_feat and self.update_node_feat and self.extended else "XPlore+" if self.update_node_feat and self.extended else "XPlore" if self.extended else "CF-GNNExplainer"
         # try:
-        #     print(f"dataset: {self.dataset.dataset_name} - {version}")
+        #     ff"dataset: {self.dataset.dataset_name} - {version}")
         # except:
         #     print(f"dataset: Unknown - {version}")
         # print("num_classes =", self.dataset.num_classes)
@@ -175,58 +194,64 @@ class XPlore(Explainer):
 
         # first_nf = instance.node_features.copy()
 
-        # print(f"true label: {instance.label}")
-        # self.f_v = self.oracle.predict(instance).clone().detach() # Get GCN prediction
-        # print(f"initial prediction predict(instance): {self.oracle.predict(instance).clone().detach()}")
         self.data = torch.tensor(instance.data, dtype=torch.double, device=self.device)
-        # print(instance.node_features.shape[0])
         self.batch = torch.zeros(instance.node_features.shape[0], dtype=torch.long, device=self.device)
-        # edge_index = torch.nonzero(self.data).int().T
-        # edge_indices = torch.where(self.data != 0) # (int tensor)
-        # edge_weights = torch.tensor(self.data.clone().detach()[edge_indices], dtype=torch.double, device=self.device)
-        # print(f"tuple edge_indices[0] shape: {edge_indices[0].shape}")
-        # print(f"edge_weights shape: {edge_weights.shape}")
-        # input()
-        edge_indices = torch.where(self.data != 0) # (int tensor)
-        edge_weights = self.data.detach().clone()[edge_indices[0], edge_indices[1]]
-        # print(f"edge_indices[0] shape: {edge_indices[0].shape}")
-        # print(f"edge_weights shape: {edge_weights.shape}")
-        # input()
 
-        # print(f"instance.node_features.shape: {instance.node_features.shape}")
-        # print(f"edge_index.shape: {edge_index.shape}")
-        # print(f"initial edge_index: {edge_index}")
-        # print(f"instance.edge_weights.shape: {instance.edge_weights.shape}")
-        # print(f"instance.edge_weights: {instance.edge_weights}")
-        # print(f"edge_weights.shape: {edge_weights.shape}")
-        # print(f"edge_weights: {edge_weights}")
+        if not self.diffusion_flag:
+            # print(f"true label: {instance.label}")
+            self.f_v = self.oracle.predict(instance).clone().detach() # Get GCN prediction
+            # print(f"initial prediction predict(instance): {self.oracle.predict(instance).clone().detach()}")
+        
+        elif self.diffusion_flag:
+            # print(instance.node_features.shape[0])
+            # edge_index = torch.nonzero(self.data).int().T
+            # edge_indices = torch.where(self.data != 0) # (int tensor)
+            # edge_weights = torch.tensor(self.data.clone().detach()[edge_indices], dtype=torch.double, device=self.device)
+            # print(f"tuple edge_indices[0] shape: {edge_indices[0].shape}")
+            # print(f"edge_weights shape: {edge_weights.shape}")
+            # input()
+            edge_indices = torch.where(self.data != 0) # (int tensor)
+            edge_weights = self.data.detach().clone()[edge_indices[0], edge_indices[1]]
+            # print(f"edge_indices[0] shape: {edge_indices[0].shape}")
+            # print(f"edge_weights shape: {edge_weights.shape}")
+            # input()
 
-        # print(f"initial prediction model(instance): {torch.argmax(initial_logits := self.oracle.model(torch.tensor(instance.node_features, dtype=torch.float64),edge_index,edge_weights,None), dim=-1)}")
-        # print(f"initial_logits: {initial_logits}")
+            # print(f"instance.node_features.shape: {instance.node_features.shape}")
+            # print(f"edge_index.shape: {edge_index.shape}")
+            # print(f"initial edge_index: {edge_index}")
+            # print(f"instance.edge_weights.shape: {instance.edge_weights.shape}")
+            # print(f"instance.edge_weights: {instance.edge_weights}")
+            # print(f"edge_weights.shape: {edge_weights.shape}")
+            # print(f"edge_weights: {edge_weights}")
 
-        self.adj_full = torch.ones_like(self.data)
-        # edge_indices = np.where(instance.data != 0)
-        # edge_weights = instance.data[edge_indices]
-        edge_weights_full = torch.zeros_like(self.data) 
-        edge_weights_full[edge_indices] = edge_weights # weights having also 0s for missing edges
-        edge_weights_full = edge_weights_full.flatten()
-        edge_index_full = self.adj_full.nonzero(as_tuple=False).T
+            # print(f"initial prediction model(instance): {torch.argmax(initial_logits := self.oracle.model(torch.tensor(instance.node_features, dtype=torch.float64),edge_index,edge_weights,None), dim=-1)}")
+            # print(f"initial_logits: {initial_logits}")
 
-        # print(f"self.adj_full shape: {self.adj_full.shape}")
-        # print(f"edge_weights_full shape: {edge_weights_full.shape}")
-        # input("enter to continue")
+            self.adj_full = torch.ones_like(self.data)
+            # edge_indices = np.where(instance.data != 0)
+            # edge_weights = instance.data[edge_indices]
+            edge_weights_full = torch.zeros_like(self.data) 
+            edge_weights_full[edge_indices] = edge_weights # weights having also 0s for missing edges
+            edge_weights_full = edge_weights_full.flatten()
+            edge_index_full = self.adj_full.nonzero(as_tuple=False).T
 
-        # self.f_v = self.oracle.predict(instance).clone().detach() # Get GCN prediction
-        # print(f"initial prediction predict(instance): {self.f_v}")
-        # print(type(self.f_v))
-        # self.f_v = torch.argmax(self.oracle.model(torch.tensor(instance.node_features, dtype=torch.float64, device=self.device),edge_index,edge_weights,None).clone().detach(), dim=-1).squeeze(-1) # Get GCN prediction
-        # print(f"initial prediction model(instance): {self.f_v}")
-        if self.diffusion_flag:
-            self.f_v = torch.argmax(self.predict_diffusion(torch.tensor(instance.node_features, dtype=torch.float64, device=self.device),edge_index_full,edge_weights_full), dim=-1).squeeze(-1) # Get diffusion prediction
-        else:
-            self.f_v = torch.argmax(self.oracle.model(torch.tensor(instance.node_features, dtype=torch.float64, device=self.device),edge_index_full,edge_weights_full,self.batch).clone().detach(), dim=-1).squeeze(-1) # Get GCN prediction
-        self.oracle._call_counter += 1
+            # print(f"self.adj_full shape: {self.adj_full.shape}")
+            # print(f"edge_weights_full shape: {edge_weights_full.shape}")
+            # input("enter to continue")
+
+            # self.f_v = self.oracle.predict(instance).clone().detach() # Get GCN prediction
+            # print(f"initial prediction predict(instance): {self.f_v}")
+            # print(type(self.f_v))
+            # self.f_v = torch.argmax(self.oracle.model(torch.tensor(instance.node_features, dtype=torch.float64, device=self.device),edge_index,edge_weights,None).clone().detach(), dim=-1).squeeze(-1) # Get GCN prediction
+            # print(f"initial prediction model(instance): {self.f_v}")
+            if self.diffusion_flag:
+                self.f_v = torch.argmax(self.predict_diffusion(torch.tensor(instance.node_features, dtype=torch.float64, device=self.device),edge_index_full,edge_weights_full), dim=-1).squeeze(-1) # Get diffusion prediction
+            else:
+                self.f_v = torch.argmax(self.oracle.model(torch.tensor(instance.node_features, dtype=torch.float64, device=self.device),edge_index_full,edge_weights_full,self.batch).clone().detach(), dim=-1).squeeze(-1) # Get GCN prediction
+                self.oracle._call_counter += 1
         # print(f"initial prediction model(instance_full): {self.f_v}")
+        # input("XPlore stop here to check predictions")
+
 
         # print(type(self.f_v))
         # print(f"initial prediction (instance_GI): {self.oracle.predict(instance_GI).clone().detach()}")
@@ -322,16 +347,33 @@ class XPlore(Explainer):
 
         if self.visualize: self.pos = nx.spring_layout(nx.from_numpy_array(instance.data)) # Fix graph orientation 
 
-        self.lr_reduction_epoch = self.K // 5
-        for k in tqdm(range(int(self.K)), disable=not (self.visualize or self.debugging)):
+        if self.chem_flag and instance.atom_types is not None:
+            # print(self.dataset.name)
+            if "MUTAG" in self.dataset.name:
+                MUTAG_VALENCE = {0: 4, 1: 3, 2: 2, 3: 1, 4: 1, 5: 1, 6: 1}  # C,N,O,F,I,Cl,Br
+                self.max_valence = torch.tensor(
+                    [MUTAG_VALENCE.get(int(t), 4) for t in instance.atom_types],
+                    dtype=torch.float64, device=self.device
+                )
+            else:
+                self.max_valence = None  # skip L_val
+
+        self.n = instance.data.shape[0]
+        self.vel = torch.zeros((self.n, self.n), dtype=torch.float64, device=self.P_hat.device)
+        self.ema = self.P_hat.data.clone()
+        self.α = self.local_config['parameters']['alpha']
+        # print(f"Initial learning rate: {self.α}")
+        self.lr_reduction_epoch = self.K // self.K #XXX 
+        for k in (pbar:=tqdm(range(int(self.K)), disable=not (self.visualize or self.debugging))): #XXX
+            # pbar.set_description(f"self.alpha: {self.α}")
             if self.debugging: print(f"Iteration: {self.k}")
             self.k = k
             self.temperature = 1
             self.new_CF = False
 
-            self.__get_CF_example(instance) # Compute CF
+            self.__get_CF_example(instance) # Compute CF #XXX
 
-            loss = self.__calculate_loss(instance) # Compute Loss
+            loss = self.__calculate_loss(instance) # Compute Loss #XXX
             # loss = self.g_v_logits[self.f_v]
             # print(f"loss: {loss.item()}")
             # print(f"{torch.autograd.grad(loss, self.edge_weights)[0]}")
@@ -362,10 +404,10 @@ class XPlore(Explainer):
 
             # print(f"self.P_hat.grad: {self.P_hat.grad}")
             # input()
-            g = self.P_hat.grad
-            g = g / (g.abs().max() + 1e-8)
-            g = g / (g.norm() + 1e-8)
-            self.P_hat.grad = g
+            g = self.P_hat.grad #NOTE 
+            g = g / (g.abs().max() + 1e-8) #NOTE 
+            g = g / (g.norm() + 1e-8) #NOTE 
+            self.P_hat.grad = g #NOTE 
             # print(f"self.P_hat.grad normalized: {self.P_hat.grad}")
 
             # --- MOMENTUM ---
@@ -403,7 +445,9 @@ class XPlore(Explainer):
                 self.P_hat.data = self.ema.clone()
 
                 self.P_hat.data = (self.P_hat.data + self.P_hat.data.T) / 2 # Symmetrizing P_hat after update
-                if not self.extended:
+                # if instance.id == 2 and (self.k == 0 or self.k == 179):
+                #     print(f"self.P_hat: {self.P_hat}")
+                if not self.extended: # CF-GNNExplainer only drops edges
                     missing_mask = torch.tensor(instance.data == 0)
                     self.P_hat.data[missing_mask] = 0
 
@@ -431,7 +475,7 @@ class XPlore(Explainer):
             if self.update_node_feat: # self.P_node_hat exists only in the extended algorithm where node features perturbations are allowed
                 self.P_node_hat.grad.zero_() # zero gradients for next iteration
 
-            if self.visualize and self.new_CF: # and self.opt_flag:
+            if self.visualize and self.new_CF: # or (self.A_v_bar.data.numpy() != instance.data).any(): # and self.opt_flag:
                 # print(instance.data, "\nCF Adj: ", self.A_v_bar.data)
                 instance_graph = nx.from_numpy_array(instance.data)
                 CF_graph = nx.from_numpy_array(self.A_v_bar.clone().detach().cpu().numpy())
@@ -449,14 +493,19 @@ class XPlore(Explainer):
                 nx.draw(CF_graph, pos=self.pos, ax=axes[1], with_labels=True, cmap='cool', node_color=self.N_v_bar.clone().detach().cpu().numpy().mean(axis=1), edge_color='gray')
                 axes[1].set_title(f"Counterfactual Graph | Predicted Class: {self.g_v} - K: {self.k}")
                 fig.suptitle(f"True label: {instance.label}")
-                plt.show()    
+                plt.show()
+                ...
 
             if self.debugging and self.visualize: print(f"Iteration {self.k} finished | Press Enter to continue")
             elif self.debugging: input(f"Iteration {self.k} finished | Press Enter to continue")
 
             if (self.k+1) % self.lr_reduction_epoch == 0 and self.decay_α:
-                self.α *= 0.1
-                print(f"Learning rate reduced to {Color.YELLOW}{self.α:<.6f}f{Color.RESET} at iteration {Color.YELLOW}{self.k}{Color.RESET}/{self.K}")
+                if (self.A_v_bar.data.numpy() == instance.data).all():
+                    self.α *= 1.05
+                else:
+                    self.α *= 1e0
+                # if self.α > 1e1*8: self.α = 1e1*8
+                pbar.set_description(f"Learning rate changed to {Color.YELLOW}{self.α:<.6f}f{Color.RESET} at iteration {Color.YELLOW}{self.k+1}{Color.RESET}/{self.K}")
             
             if self.opt_flag: break # Breaking at first CF found (Different from paper algorithm → If Efficiency is preferred: avoiding extra loop iterations to find better (closer) CF))
 
@@ -520,7 +569,7 @@ class XPlore(Explainer):
         
         # print(f"print(v_bar_opt_GI.edge_weights.shape) : {v_bar_opt_GI.edge_weights.shape}")   
 
-        from src.evaluation.evaluation_metric_correctness_full import CorrectnessFullMetric
+        # from src.evaluation.evaluation_metric_correctness_full import CorrectnessFullMetric
         # CorrectnessFullMetric.evaluate(v_bar_opt_GI)
         # input()
 
@@ -565,7 +614,7 @@ class XPlore(Explainer):
                 # print(feat.mean())
                 G.nodes[i]["Feature"] = feat.mean()
 
-            nx.write_gexf(G, f"C:\\Users\\ACER\Documents\\CS\\Thesis\\Media\\Counterfactual Visualization\\{instance.id}-original.gexf")
+            nx.write_gexf(G, f"CFs_figs\\{instance.id}-original.gexf")
 
             G = nx.from_numpy_array(edge_weights_full.reshape(instance.data.shape))
             print(edge_weights_full.reshape(instance.data.shape).shape)
@@ -574,12 +623,161 @@ class XPlore(Explainer):
                 # print(feat.mean())
                 G.nodes[i]["Feature"] = feat.mean()
 
-            nx.write_gexf(G, f"C:\\Users\\ACER\Documents\\CS\\Thesis\\Media\\Counterfactual Visualization\\{instance.id}-{explainer_name}-{oracle_name}.gexf")
+            nx.write_gexf(G, f"CFs_figs\\{instance.id}-{explainer_name}-{oracle_name}.gexf")
+            input(f"Graph saved to CFs_figs\\{instance.id}-{explainer_name}-{oracle_name}.gexf")
 
         if not self.opt_flag:
             if not self.node_classification: print(f"{Color.RED}CF not found{Color.RESET}, original: {Color.MAGENTA}{self.f_v}{Color.RESET}")
             else: print(f"{Color.RED}CF not found{Color.RESET}, original: {Color.MAGENTA}{self.f_v[self.node_id]} [^node id: {self.node_id}]{Color.RESET}")
             return instance
+
+        if self.chem_flag:
+            # Chemical validity check
+            # Dataset-specific atom type maps
+            ATOM_MAPS = {
+                "MUTAG": {0: "C", 1: "N", 2: "O", 3: "F", 4: "I", 5: "Cl", 6: "Br"},
+                "Mutagenicity": {0: "C", 1: "N", 2: "O", 3: "F", 4: "I", 5: "Cl", 6: "Br", 7: "S"},
+            }
+            BOND_MAPS = {
+                1: Chem.BondType.SINGLE,
+                2: Chem.BondType.DOUBLE,
+                3: Chem.BondType.TRIPLE,
+                4: Chem.BondType.AROMATIC
+            }
+
+            def nx_to_mol(G: nx.Graph, dataset_name: str, node_label_attr="label", edge_label_attr="label"):
+                atom_map = ATOM_MAPS.get(dataset_name)
+                if atom_map is None:
+                    return None  # atom types unknown for this dataset
+                mol = Chem.RWMol()
+                for node, data in G.nodes(data=True):
+                    symbol = atom_map.get(data.get(node_label_attr, 0), "C")
+                    mol.AddAtom(Chem.Atom(symbol))
+                for u, v, data in G.edges(data=True):
+                    if u == v: continue  # skip self-loops
+                    bond_type = BOND_MAPS.get(data.get(edge_label_attr, 1), Chem.BondType.SINGLE)
+                    mol.AddBond(int(u), int(v), bond_type)
+                try:
+                    Chem.SanitizeMol(mol, Chem.SanitizeFlags.SANITIZE_ALL ^ Chem.SanitizeFlags.SANITIZE_PROPERTIES)
+                    return mol  # valid molecule
+                except Exception:
+                    return None  # invalid molecule
+
+            def is_valid_molecule(G: nx.Graph, dataset_name: str, **kwargs) -> bool:
+                return nx_to_mol(G, dataset_name, **kwargs) is not None
+
+            def get_cf_validity(instance, cf_adj: np.ndarray, dataset_name: str) -> bool:
+                """
+                Check if a CF adjacency matrix corresponds to a valid molecule.
+                Requires instance.atom_types to be set (from TUDataset populate()).
+                Returns False if atom types are unavailable for this dataset.
+                """
+                if instance.atom_types is None:
+                    return False
+                cf_adj_binary = (cf_adj > 0.5).astype(int)
+                G = nx.from_numpy_array(cf_adj_binary)
+                # if not nx.is_connected(G):
+                    # return False
+                for i, atom_idx in enumerate(instance.atom_types):
+                    G.nodes[i]['label'] = int(atom_idx)
+                return is_valid_molecule(G, dataset_name)
+            
+            def draw_molecule(cf_adj, dataset_name, filepath="molecule.png"):
+                mol = nx_to_mol(
+                    nx.from_numpy_array(cf_adj), 
+                    dataset_name
+                )
+                if mol is None:
+                    print("Invalid molecule, cannot draw.")
+                    return
+                # Set atom labels from atom_types
+                G = nx.from_numpy_array(cf_adj)
+                for i, atom_idx in enumerate(instance.atom_types):
+                    G.nodes[i]['label'] = int(atom_idx)
+                mol = nx_to_mol(G, dataset_name)
+                Draw.MolToFile(mol, filepath)
+                return mol
+            
+            def plot_molecule(mol, title="", filepath=None, ref_mol=None):
+                # Generate 2D coords
+                import random
+                if ref_mol is not None:
+                    try:
+                        AllChem.GenerateDepictionMatching2DStructure(mol, ref_mol)
+                    except ValueError:
+                        AllChem.Compute2DCoords(mol)  # fallback to independent layout
+                else:
+                    AllChem.Compute2DCoords(mol)
+                img = Draw.MolToImage(mol, size=(300, 300))
+
+                fig, ax = plt.subplots()
+                ax.imshow(img)
+                ax.axis("off")
+                ax.set_title(title)
+                if filepath:
+                    plt.savefig(filepath, format='pdf', bbox_inches='tight', pad_inches=0, transparent=True)
+                    print(f"Saved to {filepath}")
+                plt.show()
+                plt.close()
+
+            def project_to_valid_molecule(mol):
+                try:
+                    Chem.SanitizeMol(mol)
+                    print("Already valid, no changes needed")
+                    return mol
+                except Exception as e:
+                    print(f"Sanitization failed: {e}")
+                    try:
+                        mol = Chem.RWMol(mol)
+                        # Print SMILES before fix
+                        print(f"SMILES before fix: {Chem.MolToSmiles(mol)}")
+                        Chem.SanitizeMol(mol, Chem.SanitizeFlags.SANITIZE_ALL ^ Chem.SanitizeFlags.SANITIZE_PROPERTIES)
+                        print(f"SMILES after fix: {Chem.MolToSmiles(mol)}")
+                        return mol
+                    except Exception as e2:
+                        print(f"Projection failed: {e2}")
+                        return None
+
+            if any(dataset in self.dataset.name for dataset in self.CHEMICAL_DATASETS):
+                chem_valid = get_cf_validity(instance, self.v_bar_opt[0].detach().cpu().numpy(), "MUTAG")
+                print(f"Chemically valid: {chem_valid}")
+                cf_adj = self.v_bar_opt[0].detach().cpu().numpy()
+                G = nx.from_numpy_array(cf_adj)
+                G_original = nx.from_numpy_array(instance.data)
+                if instance.atom_types is not None:
+                    for i, atom_idx in enumerate(instance.atom_types):
+                        G.nodes[i]['label'] = int(atom_idx)
+                        G_original.nodes[i]['label'] = int(atom_idx)
+                # mol = nx_to_mol(G, self.dataset.name)
+                mol = nx_to_mol(G, "MUTAG")
+                mol_original = nx_to_mol(G_original, "MUTAG")
+                # print(f"mol: {mol}")
+                if mol:
+                    print(f"SMILES raw: {Chem.MolToSmiles(mol)}")
+                    # plot_molecule(mol, title=f"CF Molecule - Valid: {chem_valid}")
+                else:
+                    print("Pre-projection: invalid molecule")
+                
+                # Project and visualize
+                # mol_projected = project_to_valid_molecule(Chem.RWMol(mol)) if mol else None
+                # if mol_projected:
+                #     print(f"SMILES projected: {Chem.MolToSmiles(mol_projected)}")
+                #     plot_molecule(mol_projected, title="", filepath=f"")NH
+                # else:
+                #     print("Post-projection: still invalid")
+                
+                if mol:
+                    oracle_name = str(self.oracle.model.__class__).split('.')[-2]
+                    explainer_name = "CFGNNE" if not self.extended else "XPlore"
+                    # draw_molecule(mol, "MUTAG", filepath=f"CFs_figs\\{self.dataset.name}\\{instance.id}-{explainer_name}-{oracle_name}.png")
+                    os.makedirs(f"CFs_figs\\{self.dataset.name}", exist_ok=True)
+                    if input("save graph? (y/n): ").lower() == "y":
+                        plot_molecule(mol, filepath=f"CFs_figs\\{self.dataset.name}\\{instance.id}-{explainer_name}-{oracle_name}.pdf", ref_mol=mol_original)
+                        nx.write_gexf(G, f"CFs_figs\\{self.dataset.name}\\{instance.id}-{explainer_name}-{oracle_name}.gexf")
+                        
+                        plot_molecule(mol_original, filepath=f"CFs_figs\\{self.dataset.name}\\{instance.id}-original.pdf", ref_mol=mol_original)
+                        nx.write_gexf(G_original, f"CFs_figs\\{self.dataset.name}\\{instance.id}-original.gexf")
+                        input(f"Graph saved to CFs_figs\\{self.dataset.name}\\{instance.id}-{explainer_name}-{oracle_name}.gexf")
 
         return v_bar_opt_GI
 
@@ -593,16 +791,23 @@ class XPlore(Explainer):
         # [line 1]: P ← threshold(σ(P_hat))
         self.temperature *= self.temperature
         P_sigmoid = torch.sigmoid(self.P_hat / self.temperature) # Threshold on sigmoid of P_hat
-        mask = (P_sigmoid > .6225).float() # Hard mask (> instead of >=, with >= also 0 values in P_hat evaluate to 1 and a fully connected matrix is obtained)
+        threshold = .6225 if self.extended else .5
+        mask = (P_sigmoid >= threshold).float() # Hard mask
         # P = P_sigmoid + (mask - P_sigmoid).clone().detach() # Gradients can flow through P
         P = mask + (P_sigmoid - P_sigmoid.clone().detach()) # Gradients can flow through P
         # print(f"P: {P}")
 
         self.A_v_bar = P * self.A_v # [line 2]: Ā_v = P ⊙ A_v
+        # if instance.id == 10: # and (self.k == 179 or self.k == 0):
+        #     print(f"instance.data:\n{instance.data}")
+        #     print(f"self.P_hat:\n{self.P_hat}")
+        #     # print(f"self.A_v:\n{self.A_v}")
+        #     print(f"A_v_bar:\n{self.A_v_bar}"); input()
         # print(f"self.A_v_bar.shape: {self.A_v_bar.shape}")
         # print(f"self.A_v_bar: {self.A_v_bar}")
         # print(f"instance.data: {instance.data}")
-        # self.A_v_bar.fill_diagonal_(1) # Add self-loops Eq(4) [5.2]
+        if not self.extended:
+            self.A_v_bar.fill_diagonal_(1) # Add self-loops Eq(4) [5.2]
 
         # self.edge_index = self.A_v_bar.nonzero(as_tuple=False).T
         # self.edge_weights = self.A_v_bar[self.edge_index[0], self.edge_index[1]]
@@ -615,8 +820,6 @@ class XPlore(Explainer):
         # print(f"instance.edge_weights: {instance.edge_weights}")
         # print(f"edge_index.shape: {self.edge_index.shape}")
         # print(f"self.edge_index: {self.edge_index}")
-
-        self.n = instance.data.shape[0]
 
         # i,j = torch.triu_indices(self.n, self.n, offset=0, device=self.device)
         # self.full_edge_index = torch.stack([i, j], dim=0)  # 2 x M
@@ -637,36 +840,69 @@ class XPlore(Explainer):
         # self.edge_index = torch.ones_like(self.A_v_bar).nonzero(as_tuple=False).T
         # self.edge_weights = self.A_v_bar[self.edge_index[0], self.edge_index[1]]
 
+        # edge_indices = torch.where(self.A_v != 0) # (int tensor)
+        # edge_weights = self.A_v_bar[edge_indices[0], edge_indices[1]]
+        # self.adj_full = torch.ones_like(self.A_v_bar)
+        # edge_weights_full = torch.zeros_like(self.data) 
+        # edge_weights_full[edge_indices] = edge_weights # weights having also 0s for missing edges
+        # self.edge_weights_full = edge_weights_full.flatten()
+        # self.edge_index_full = self.adj_full.nonzero(as_tuple=False).T
+
+        # # self.edge_index_full = torch.where(torch.ones_like(self.A_v_bar) != 0) # (integer tensor)
+        # # self.edge_weights_full = torch.zeros_like(self.A_v_bar) 
+        # # self.edge_weights_full[self.edge_indices] = self.edge_weights # weights having also 0s for missing edges
+        # # self.edge_weights_full = self.edge_weights_full[self.edge_index_full]
+        # # print(f"edge_weights_full.shape: {edge_weights_full.shape}")
+        # # print(f"edge_weights_full: {edge_weights_full}")
 
 
-        # self.edge_index_full = torch.where(torch.ones_like(self.A_v_bar) != 0) # (integer tensor)
-        # self.edge_weights_full = torch.zeros_like(self.A_v_bar) 
-        # self.edge_weights_full[self.edge_indices] = edge_weights # weights having also 0s for missing edges
-        # self.edge_weights_full = self.edge_weights_full[self.edge_index_full]
-        # print(f"edge_weights_full.shape: {edge_weights_full.shape}")
-        # print(f"edge_weights_full: {edge_weights_full}")
-
-
-
+        # input(instance.atom_types)
         # print(f"instance.feature_map:\n{instance.node_features}")
         if d := self.__distance(self.data, self.A_v_bar):
             # print(f"distance: {d}")
             graph = nx.from_numpy_array(P.clone().detach().cpu().numpy())
             num_nodes = graph.number_of_nodes()
+            features_to_stack = []
 
-            # Compute all features as lists in node order
-            degree = [d for n, d in sorted(graph.degree())]
-            betweenness = [v for n, v in sorted(nx.betweenness_centrality(graph).items())]
-            closeness = [v for n, v in sorted(nx.closeness_centrality(graph).items())]
-            harmonic = [v for n, v in sorted(nx.harmonic_centrality(graph).items())]
-            clustering = [v for n, v in sorted(nx.clustering(graph).items())]
-            katz = [v for n, v in sorted(nx.katz_centrality_numpy(graph).items())]
-            try: laplacian = list(nx.laplacian_spectrum(graph))[:num_nodes]  # take first n eigenvalues if needed
-            # except: laplacian = list(nx.laplacian_centrality(graph).values())
-            except: laplacian = [0.0] * num_nodes
+            if any(dataset in self.dataset.name for dataset in self.CHEMICAL_DATASETS):
+                atom_onehot = instance.node_features[:, :instance.n_atom_types]
+                features_to_stack.insert(0, atom_onehot)  # prepend, before causality
+                # print(f"atom_onehot: {atom_onehot}")
 
-            # Stack into a (num_nodes, num_features) array
-            node_features = np.stack([degree, betweenness, closeness, harmonic, clustering, katz, laplacian], axis=1)
+            # Compute Centrality features as lists in node order
+            if self.manipulators != [] and 'NodeCentrality' in self.manipulators:
+                degree = [d for n, d in sorted(graph.degree())]
+                betweenness = [v for n, v in sorted(nx.betweenness_centrality(graph).items())]
+                closeness = [v for n, v in sorted(nx.closeness_centrality(graph).items())]
+                harmonic = [v for n, v in sorted(nx.harmonic_centrality(graph).items())]
+                clustering = [v for n, v in sorted(nx.clustering(graph).items())]
+                katz = [v for n, v in sorted(nx.katz_centrality_numpy(graph).items())]
+                try: laplacian = list(nx.laplacian_spectrum(graph))[:num_nodes]  # take first n eigenvalues if needed
+                # except: laplacian = list(nx.laplacian_centrality(graph).values())
+                except: laplacian = [0.0] * num_nodes
+                centralities = np.stack([degree, betweenness, closeness, harmonic, clustering, katz, laplacian], axis=1)
+                # node_features = np.stack([degree, betweenness, closeness, harmonic, clustering, katz, laplacian], axis=1) # Stack into a (num_nodes, num_features) array
+
+                            
+            # compute Causality features
+            if self.manipulators != [] and 'Causality' in self.manipulators:
+                causality_manip = next((m for m in self.dataset.manipulators if type(m).__name__ == 'Causality'), None)
+                # input(causality_manip)
+                if causality_manip:
+                    # dim = causality_manip.causality_dim_choice
+                    # print(f"causality dim: {dim}")
+                    u = int(causality_manip.causalities[instance.id])
+                    noise_1 = (causality_manip.max_1[u] - causality_manip.min_1[u]) * np.random.random_sample() + causality_manip.min_1[u]
+                    causality_val = noise_1 + 0.5 * np.mean(degree)
+                    causality = np.full((num_nodes, 1), causality_val)  # (N, dim) not (N,)
+                    features_to_stack.append(causality)
+                    # print(f"causality.shape: {causality.shape}")
+
+            if self.manipulators != [] and 'NodeCentrality' in self.manipulators:
+                features_to_stack.append(centralities)
+            
+            node_features = np.hstack(features_to_stack)
+            # print(f"node_features:\n{node_features.shape}"); input()
             self.N_v_bar = torch.tensor(node_features, dtype=torch.float64, device=self.device)
             # print(f"feature_map:\n{node_features}")
         else: # Keep same node features
@@ -678,7 +914,7 @@ class XPlore(Explainer):
             if not self.change_node_feat: # Either discard or maintain the node feature (gating)
                 # Repeat previous steps for N_v_bar
                 N_sigmoid = torch.sigmoid(self.P_node_hat) # Threshold on sigmoid of P_node_hat
-                mask = (N_sigmoid > .6225).float().clone() # Hard mask (> instead of >=)
+                mask = (N_sigmoid > threshold).float().clone() # Hard mask (> instead of >=)
                 N = N_sigmoid + (mask - N_sigmoid).detach() # Gradients can flow through N
 
                 self.N_v_bar = N * self.x # N ⊙ x
@@ -732,16 +968,24 @@ class XPlore(Explainer):
             # print(self.edge_weights)
             # print(self.N_v_bar)
 
+            # self.g_v_logits = self.oracle.model(self.N_v_bar, self.edge_index_full, self.edge_weights_full, self.batch).squeeze()
+            # print(f"self.g_v_logits: {self.g_v_logits}")
+            # print(f"self.N_v_bar.shape, self.edge_index.shape, self.edge_weights.shape: {self.N_v_bar.shape, self.edge_index.shape, self.edge_weights.shape}")
             self.g_v_logits = self.oracle.model(self.N_v_bar, self.edge_index, self.edge_weights, self.batch).squeeze()
             # print(f"self.g_v_logits: {self.g_v_logits}")
+            # input("logits computed")
+
 
             # self.g_v_logits = self._real_predict_gradients(self.A_v_bar_GI) # Oracle CF prediction → returns probabilities
             # self.g_v_logits = self._real_predict_gradients(temp_A_v_bar_GI) # Oracle CF prediction → returns probabilities
         self.oracle._call_counter += 1
+
         g_v_bar_pred = torch.argmax(self.g_v_logits, dim=-1) # Getting the predicted class
         # print(f"new pred: {g_v_bar_pred}")
         # if torch.any(g_v_bar_pred != self.oracle.predict(A_v_bar_GI)): input(f"{Color.RED}Warning{Color.RESET} | Oracle's prediction is ambiguous")
         self.g_v_bar_pred = g_v_bar_pred
+
+        # input("Predictions computed")
 
         self.valid_CF = False # Flag for valid CF
         with torch.no_grad():
@@ -753,8 +997,8 @@ class XPlore(Explainer):
 
                 if not self.opt_flag: # [line 6]: if not v_bar_opt then
                     self.v_bar_opt = v_bar # [line 7]: v_bar_opt ← v_bar # First CF
-                    if not self.node_classification: print(f"{Color.GREEN}Found valid counterfactual - {Color.CYAN}Counterfactual predicted class: {Color.GREEN}{g_v_bar_pred}{Color.CYAN} instead of {Color.MAGENTA}{self.f_v}{Color.RESET} | K: {self.k}")  # Debugging
-                    else: print(f"{Color.GREEN}Found valid counterfactual [^node id:{self.node_id}] - {Color.CYAN}Counterfactual predicted class: {Color.GREEN}{g_v_bar_pred[self.node_id]}{Color.CYAN} instead of {Color.MAGENTA}{self.f_v[self.node_id]}{Color.RESET} | K: {self.k}")  # Debugging
+                    if not self.node_classification: tqdm.write(f"{Color.GREEN}Found valid counterfactual - {Color.CYAN}Counterfactual predicted class: {Color.GREEN}{g_v_bar_pred}{Color.CYAN} instead of {Color.MAGENTA}{self.f_v}{Color.RESET} | K: {self.k}")  # Debugging
+                    else: tqdm.write(f"{Color.GREEN}Found valid counterfactual [^node id:{self.node_id}] - {Color.CYAN}Counterfactual predicted class: {Color.GREEN}{g_v_bar_pred[self.node_id]}{Color.CYAN} instead of {Color.MAGENTA}{self.f_v[self.node_id]}{Color.RESET} | K: {self.k}")  # Debugging
                     self.edge_weights_opt = self.edge_weights
                     self.opt_flag = True # CF found
                     self.g_v = g_v_bar_pred
@@ -764,8 +1008,8 @@ class XPlore(Explainer):
                 elif self.__distance(self.v[0], v_bar[0]) < self.__distance(self.v[0], self.v_bar_opt[0]): # [line 8]: else if d(v, v_bar) ≤ d(v, v_bar*) then
                     self.v_bar_opt = v_bar # [line 9]: v_bar* ← v_bar # Keep track of best CF
                     self.edge_weights_opt = self.edge_weights
-                    if not self.node_classification: print(f"{Color.BLUE}Found new best counterfactual - {Color.CYAN}Counterfactual predicted class: {Color.RESET}{g_v_bar_pred} | K: {self.k}")  # Debugging
-                    else: print(f"{Color.BLUE}Found new best counterfactual [^node id:{self.node_id}] - {Color.CYAN}Counterfactual predicted class: {Color.RESET}{g_v_bar_pred[self.node_id]} | K: {self.k}")  # Debugging
+                    if not self.node_classification: tqdm.write(f"{Color.BLUE}Found new best counterfactual - {Color.CYAN}Counterfactual predicted class: {Color.RESET}{g_v_bar_pred} | K: {self.k}")  # Debugging
+                    else: tqdm.write(f"{Color.BLUE}Found new best counterfactual [^node id:{self.node_id}] - {Color.CYAN}Counterfactual predicted class: {Color.RESET}{g_v_bar_pred[self.node_id]} | K: {self.k}")  # Debugging
                     self.g_v = g_v_bar_pred
                     self.new_CF = True
 
@@ -813,11 +1057,22 @@ class XPlore(Explainer):
         # D_nodes = node_diff.sum() # L1-norm for nodes: distance between the node features changed
         D_nodes = 0
         L_dist = D_edges + D_nodes # Total L1-norm
-        
-        # 3. Total loss
-        # print("Loss:", L_pred, L_dist)
-        total_loss = - (L_pred - self.β * L_dist)
-        # total_loss = - (L_pred_margin - self.β * L_dist)
+
+        # Chemical loss
+        if self.chem_flag:   
+            valence_penalty = self.__valence_penalty() if instance.atom_types is not None else 0
+            # print(f"Valence penalty: {valence_penalty}")#; input()
+            connectivity_penalty = self.__connectivity_penalty()
+            # print(f"Connectivity penalty: {connectivity_penalty}")#; input()
+            total_loss = - (L_pred - self.β * L_dist - 0.1 * valence_penalty - 0.5 * connectivity_penalty)
+
+
+        else:
+            # 3. Total loss
+            # print("Loss:", L_pred, L_dist)
+            total_loss = - (L_pred - self.β * L_dist)
+            # print(f"Total loss: {total_loss} - L_pred: {L_pred} - L_dist: {L_dist} - Valence: {valence_penalty} - Connectivity: {connectivity_penalty}")#; input()
+            # total_loss = - (L_pred_margin - self.β * L_dist)
         
         # return L_pred
         return total_loss
@@ -829,6 +1084,21 @@ class XPlore(Explainer):
     @torch.no_grad()
     def __distance(self, v, CF):
         return (v != CF).sum()
+    
+    def __valence_penalty(self):
+        # print(f"self.A_v_bar: {self.A_v_bar}\nmax_valence: {self.max_valence}"); input()
+        soft_degree = self.A_v_bar.sum(dim=1) - torch.diag(self.A_v_bar)  # P ⊙ A_v, gradients flow - subtract self-loops if present
+        violation = torch.relu(soft_degree - self.max_valence)
+        return violation.sum()
+    
+    def __connectivity_penalty(self):
+        A = self.A_v_bar
+        A = (A + A.T) / 2  # symmetrize
+        D = torch.diag(A.sum(dim=1))
+        L = D - A
+        eigvals = torch.linalg.eigvalsh(L)
+        fiedler = eigvals[1]
+        return torch.relu(0.5 - fiedler)
 
     def predict_diffusion(self, node_features, edge_index, edge_weights):
         """Compute prediction using the diffusion oracle for a single instance, keeping gradients."""

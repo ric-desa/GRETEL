@@ -30,7 +30,7 @@ class TreeCyclesRandGen(Generator):
 
         for i in range(self.num_instances):
             
-            n_nodes = np.random.randint(6, self.num_nodes_per_instance) # Create a graph with a random number of nodes
+            n_nodes = np.random.randint(8, self.num_nodes_per_instance) # Create a graph with a random number of nodes
             # print(f"n_nodes: {n_nodes}")
             ratio = max(3 / n_nodes, self.ratio_nodes_in_cycles)
             # print(f"ratio: {ratio}")
@@ -61,7 +61,7 @@ class TreeCyclesRandGen(Generator):
                     
                     left += budget
                     tc_graph = nx.from_numpy_array(self._join_graphs_as_adj(nx.random_tree(n=left), cycles))
-                    tc_graph.add_edges_from([(n, n) for n in tc_graph.nodes() if np.random.rand() < 0.3])
+                    tc_graph.add_edges_from([(n, n) for n in tc_graph.nodes() if np.random.rand() < 0.3]) # add some self-loops
 
                 # print(tc_graph); input()
                 label = 1
@@ -75,7 +75,7 @@ class TreeCyclesRandGen(Generator):
                 else:
                     # Generating a random tree containing all the nodes of the instance
                     t_graph = nx.random_tree(n=n_nodes)
-                    t_graph.add_edges_from([(n, n) for n in t_graph.nodes() if np.random.rand() < 0.3])
+                    t_graph.add_edges_from([(n, n) for n in t_graph.nodes() if np.random.rand() < 0.3]) # add some self-loops
                 
                 # print(nx.to_numpy_array(t_graph)); input()
                 label = 0

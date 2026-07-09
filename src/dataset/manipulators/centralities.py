@@ -45,8 +45,12 @@ class NodeCentrality(BaseManipulator):
             "harmonic_centrality": list(harmonic_centrality.values()),
             "clustering_coefficient": list(clustering_coefficient.values()),
             "katz_centrality": list(katz_centrality.values()),
-            "laplacian_centrality": list(laplacian_centrality)
+            "laplacian_centrality": list(laplacian_centrality),
+            # "atom_type": list(np.argmax(instance.node_features, axis=1).astype(float))
+            #  if instance.node_features is not None and instance.node_features.shape[1] > 1
+            #  else [0.0] * graph.number_of_nodes()
         }
+        # print(instance.node_features, feature_map); input()
         return feature_map
     
     def __centrality_unconnected_graphs(self, G):

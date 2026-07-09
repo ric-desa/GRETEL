@@ -15,6 +15,11 @@ from src.dataset.utils.dataset_torch import TorchDataset
 from src.utils.logger import GLogger
 from src.utils.utils import pad_adj_matrix
 
+from rdkit import Chem
+from rdkit.Chem import Draw, AllChem
+import os
+import networkx as nx, matplotlib.pyplot as plt
+
 
 class CLEARExplainer(Trainable, Explainer):
 
@@ -57,8 +62,17 @@ class CLEARExplainer(Trainable, Explainer):
                                           weight_decay=self.weight_decay)
 
         self._logger = GLogger.getLogger()
+        self.visualize = self.local_config['parameters'].get('visualize', False)
+        self.vis_id = self.local_config['parameters'].get('vis_id', -1)
+        self.chem_flag = self.local_config['parameters'].get('chem_flag', False)    
+
         
     def explain(self, instance):
+        if self.visualize and instance.id != self.vis_id and self.vis_id != -1:
+            return instance
+
+        original_instance = instance#.__deepcopy__()
+
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         # Ensure the model is on the same device
         self.model.to(device)
@@ -104,6 +118,10 @@ class CLEARExplainer(Trainable, Explainer):
             model_return = self.model(features, causality, adj, labels)
             adj_reconst, features_reconst = model_return['adj_reconst'], model_return['features_reconst']
             
+            print("adj stats:",
+                adj_reconst.min().item(),
+                adj_reconst.max().item(),
+                torch.isnan(adj_reconst).any().item())
             adj_reconst_binary = torch.bernoulli(adj_reconst.squeeze())
             
             cf_instance = GraphInstance(id=instance.id,
@@ -111,6 +129,131 @@ class CLEARExplainer(Trainable, Explainer):
                                         data=adj_reconst_binary.to("cpu").detach().numpy(),
                                         node_features=features_reconst.squeeze().to("cpu").detach().numpy())
             
+            orig_pred = self.oracle.predict(original_instance)
+            cf_pred = self.oracle.predict(cf_instance)
+            
+            
+            if cf_instance and self.visualize:
+                pos = nx.spring_layout(nx.from_numpy_array(cf_instance.data)) # Fix graph orientation
+                instance_graph = nx.from_numpy_array(original_instance.data)
+                CF_graph = nx.from_numpy_array(cf_instance.data)
+                fig, axes = plt.subplots(1, 2, figsize=(12, 6))
+                nx.draw(instance_graph, pos=pos, ax=axes[0], with_labels=True, cmap='cool', node_color=original_instance.node_features.mean(axis=1), edge_color='gray')
+                axes[0].set_title(f"Initial Graph | Predicted Class: {orig_pred}")
+                nx.draw(CF_graph, pos=pos, ax=axes[1], with_labels=True, cmap='cool', node_color=cf_instance.node_features.mean(axis=1), edge_color='gray')
+                axes[1].set_title(f"Counterfactual Graph | Predicted Class: {cf_pred}")
+                fig.suptitle(f"True label: {original_instance.label}")
+                plt.show()
+
+                save = input("save graph? (y/n): ")
+            
+                if save.lower() == "y":
+
+                    oracle_name = str(self.oracle.model.__class__).split('.')[-2]
+
+                    G = nx.from_numpy_array(cf_instance.data)
+
+                    for i, feat in enumerate(cf_instance.node_features):
+                        # print(feat.mean())
+                        G.nodes[i]["Feature"] = feat.mean()
+
+                    nx.write_gexf(G, f"CFs_figs\\{instance.id}-CLEAR-{oracle_name}-{"cf" if orig_pred!=cf_pred else "not_cf"}.gexf")
+                    input(f"Graph saved to CFs_figs\{instance.id}-CLEAR-{oracle_name}-{"cf" if orig_pred!=cf_pred else "not_cf"}.gexf")
+
+            if cf_instance and self.chem_flag:
+                ATOM_MAPS = {
+                    "MUTAG": {0: "C", 1: "N", 2: "O", 3: "F", 4: "I", 5: "Cl", 6: "Br"},
+                    "Mutagenicity": {0: "C", 1: "N", 2: "O", 3: "F", 4: "I", 5: "Cl", 6: "Br", 7: "S"},
+                }
+                BOND_MAPS = {
+                    1: Chem.BondType.SINGLE,
+                    2: Chem.BondType.DOUBLE,
+                    3: Chem.BondType.TRIPLE,
+                    4: Chem.BondType.AROMATIC
+                }
+
+                def nx_to_mol(G: nx.Graph, dataset_name: str, node_label_attr="label", edge_label_attr="label"):
+                    atom_map = ATOM_MAPS.get(dataset_name)
+                    if atom_map is None:
+                        return None  # atom types unknown for this dataset
+                    mol = Chem.RWMol()
+                    for node, data in G.nodes(data=True):
+                        symbol = atom_map.get(data.get(node_label_attr, 0), "C")
+                        mol.AddAtom(Chem.Atom(symbol))
+                    for u, v, data in G.edges(data=True):
+                        if u == v: continue  # skip self-loops
+                        bond_type = BOND_MAPS.get(data.get(edge_label_attr, 1), Chem.BondType.SINGLE)
+                        mol.AddBond(int(u), int(v), bond_type)
+                    try:
+                        Chem.SanitizeMol(mol, Chem.SanitizeFlags.SANITIZE_ALL ^ Chem.SanitizeFlags.SANITIZE_PROPERTIES)
+                        return mol  # valid molecule
+                    except Exception:
+                        return None  # invalid molecule
+
+                def is_valid_molecule(G: nx.Graph, dataset_name: str, **kwargs) -> bool:
+                    return nx_to_mol(G, dataset_name, **kwargs) is not None
+
+                def get_cf_validity(instance, cf_adj: np.ndarray, dataset_name: str) -> bool:
+                    """
+                    Check if a CF adjacency matrix corresponds to a valid molecule.
+                    Requires instance.atom_types to be set (from TUDataset populate()).
+                    Returns False if atom types are unavailable for this dataset.
+                    """
+                    if instance.atom_types is None:
+                        return False
+                    cf_adj_binary = (cf_adj > 0.5).astype(int)
+                    G = nx.from_numpy_array(cf_adj_binary)
+                    if not nx.is_connected(G):
+                        return False
+                    for i, atom_idx in enumerate(instance.atom_types):
+                        G.nodes[i]['label'] = int(atom_idx)
+                    return is_valid_molecule(G, dataset_name)
+                
+                def plot_molecule(mol, title="", filepath=None, ref_mol=None):
+                    # Generate 2D coords
+                    import random
+                    if ref_mol is not None:
+                        try:
+                            AllChem.GenerateDepictionMatching2DStructure(mol, ref_mol)
+                        except ValueError:
+                            AllChem.Compute2DCoords(mol)  # fallback to independent layout
+                    else:
+                        AllChem.Compute2DCoords(mol)
+                    img = Draw.MolToImage(mol, size=(300, 300))
+
+                    fig, ax = plt.subplots()
+                    ax.imshow(img)
+                    ax.axis("off")
+                    ax.set_title(title)
+                    if filepath:
+                        plt.savefig(filepath, format='pdf', bbox_inches='tight', pad_inches=0, transparent=True)
+                        print(f"Saved to {filepath}")
+                    plt.show()
+                    plt.close()
+                
+                print(f"orig_pred: {orig_pred} | cf_pred: {cf_pred}")
+                chem_valid = get_cf_validity(instance, cf_instance.data, "MUTAG")
+                print(f"Chemically valid: {chem_valid}")
+                cf_adj = cf_instance.data
+                G = nx.from_numpy_array(cf_adj)
+                G_original = nx.from_numpy_array(instance.data)
+                if instance.atom_types is not None:
+                    for i, atom_idx in enumerate(instance.atom_types):
+                        G.nodes[i]['label'] = int(atom_idx)
+                        G_original.nodes[i]['label'] = int(atom_idx)
+                        
+                mol = nx_to_mol(G, "MUTAG")
+                mol_original = nx_to_mol(G_original, "MUTAG")
+                
+                if mol:
+                    oracle_name = str(self.oracle.model.__class__).split('.')[-2]
+                    # draw_molecule(mol, "MUTAG", filepath=f"CFs_figs\\{self.dataset.name}\\{instance.id}-{explainer_name}-{oracle_name}.png")
+                    os.makedirs(f"CFs_figs\\{self.dataset.name}", exist_ok=True)
+                    if input("save graph? (y/n): ").lower() == "y":
+                        plot_molecule(mol, filepath=f"CFs_figs\\{self.dataset.name}\\{instance.id}-CLEAR-{oracle_name}-{"cf" if orig_pred!=cf_pred else "not_cf"}.pdf", ref_mol=mol_original)
+                        nx.write_gexf(G, f"CFs_figs\\{self.dataset.name}\\{instance.id}-CLEAR-{oracle_name}-{"cf" if orig_pred!=cf_pred else "not_cf"}.gexf")
+                        input(f"Graph saved to CFs_figs\{self.dataset.name}\{instance.id}-CLEAR-{oracle_name}-{"cf" if orig_pred!=cf_pred else "not_cf"}.gexf")
+
             return cf_instance
 
     def real_fit(self):
@@ -171,8 +314,13 @@ class CLEARExplainer(Trainable, Explainer):
             
             self.context.logger.info(f'Epoch {epoch+1} ---> loss {loss}')
             # backward
-            alpha = self.alpha if epoch >= 450 else 0
-            ((loss_sim + loss_kl + alpha * loss_cfe) / batch_num).backward()        
+            alpha = self.alpha if epoch >= 5 else 0
+            # ((loss_sim + loss_kl + alpha * loss_cfe) / batch_num).backward() 
+            loss = self.lambda_sim * loss_sim + self.lambda_kl * loss_kl + self.lambda_cfe * loss_cfe
+            loss.backward()       
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+            if not torch.isfinite(loss):
+                print("Loss exploded")
             self.optimizer.step()
         
         self.model._fitted = True
@@ -182,15 +330,24 @@ class CLEARExplainer(Trainable, Explainer):
             _, _, y_cf, z_u_mu, z_u_logvar, z_mu_cf, z_logvar_cf = params['model'], params['oracle'], params['z_mu'], \
                 params['z_logvar'], params['adj_permuted'], params['features_permuted'], params['adj_reconst'], params['features_reconst'], \
                     params['adj_input'], params['features_input'], params['y_cf'], params['z_u_mu'], params['z_u_logvar'], params['z_mu_cf'], params['z_logvar_cf']
-                    
+
+        adj_reconst = torch.nan_to_num(adj_reconst, nan=0.0, posinf=0.0, neginf=0.0)         
+        features_reconst = torch.nan_to_num(features_reconst, nan=0.0, posinf=0.0, neginf=0.0)
         # kl loss
+        z_logvar = torch.clamp(z_logvar, -10, 10)
+        z_u_logvar = torch.clamp(z_u_logvar, -10, 10)
         loss_kl = 0.5 * (((z_u_logvar - z_logvar) + ((z_logvar.exp() + (z_mu - z_u_mu).pow(2)) / z_u_logvar.exp())) - 1)
         loss_kl = torch.mean(loss_kl)
         
         # similarity loss
         size = len(features_permuted)
         dist_x = torch.mean(self.__distance_feature(features_permuted.view(size, -1), features_reconst.view(size, -1)))
-        adj_permuted /= torch.max(adj_permuted)
+        # adj_permuted /= torch.max(adj_permuted)
+        adj_permuted /= (adj_permuted.max(dim=-1, keepdim=True)[0].clamp(min=1e-8))
+        adj_permuted = adj_permuted.clamp(0, 1)
+        print("adj min/max:", adj_reconst.min().item(), adj_reconst.max().item())
+        print("features finite:", torch.isfinite(features_reconst).all().item())
+        print("adj finite:", torch.isfinite(adj_reconst).all().item())
         dist_a = self.__distance_graph_prob(adj_permuted, adj_reconst)
                 
         loss_sim = self.beta_x * dist_x + self.beta_adj * dist_a
@@ -203,6 +360,7 @@ class CLEARExplainer(Trainable, Explainer):
                                           data=adj_reconst[i].to("cpu").detach().numpy().squeeze(),
                                           node_features=features_reconst[i].to("cpu").detach().numpy().squeeze())
             y_pred.append(np.array(oracle.predict_proba(temp_instance)))
+            # assert np.isfinite(y_pred).all(), "y_pred contains non-finite values"
 
         y_pred = torch.from_numpy(np.array(y_pred)).float().squeeze()
         # print(f"y_pred.shape: {y_pred.shape} | y_cf.shape: {y_cf.shape}")
@@ -227,7 +385,11 @@ class CLEARExplainer(Trainable, Explainer):
         return pdist(feat_1, feat_2) / 4
     
     def __distance_graph_prob(self, adj_1, adj_2_prob):
-        return F.binary_cross_entropy(adj_2_prob, adj_1)
+        # if not ((adj_1 >= -1).all() and (adj_1 <= 1 ).all() and (adj_2_prob > -1).all() and (adj_2_prob < 1 ).all()):
+            # ...
+
+        # return F.binary_cross_entropy(adj_2_prob, adj_1)
+        return F.binary_cross_entropy_with_logits(adj_2_prob, adj_1)
     
     
     def check_configuration(self):
@@ -338,7 +500,7 @@ class CLEAR(nn.Module):
             nn.Dropout(self.dropout),
             nn.ReLU(),
             nn.Linear(self.h_dim, self.n_nodes * self.n_nodes),
-            nn.Sigmoid()
+            # nn.Sigmoid()
         )
         self.graph_norm = nn.BatchNorm1d(self.h_dim)
         
@@ -382,7 +544,7 @@ class CLEAR(nn.Module):
         elif type == 'sum':
             out = torch.sum(x, dim=1, keepdim=False)
         elif type == 'mean':
-            out = torch.sum(x, dim=1, keepdim=False)
+            out = torch.mean(x, dim=1, keepdim=False)
         return out
     
     def prior_params(self, causality): # P(Z | causality)

@@ -17,7 +17,7 @@ class CorrectnessFullMetric(EvaluationMetric):
         self._name = 'CorrectnessFull'
         self._ged = GraphEditDistanceMetric() # GraphEditDistanceFullMetric()
 
-    def evaluate(self, instance_1 , instance_2 , oracle : Oracle=None, explainer : Explainer=None, dataset = None):
+    def evaluate_full(self, instance_1 , instance_2 , oracle : Oracle=None, explainer : Explainer=None, dataset = None):
 
         self.device = oracle.device
         # print(f"metric device: {self.device}")
@@ -51,7 +51,8 @@ class CorrectnessFullMetric(EvaluationMetric):
         # print(f"edge_index_full.shape: {edge_index_full_1.shape}")
 
         self.batch = torch.zeros(instance_1.node_features.shape[0], dtype=torch.long, device=self.device)
-        label_instance_1 = torch.argmax(oracle.model(torch.tensor(instance_1.node_features, dtype=torch.double, device=self.device), edge_index_full_1, edge_weights_full_1, self.batch).clone().detach(), dim=-1).squeeze(-1) 
+        # label_instance_1 = torch.argmax(oracle.model(torch.tensor(instance_1.node_features, dtype=torch.double, device=self.device), edge_index_full_1, edge_weights_full_1, self.batch).clone().detach(), dim=-1).squeeze(-1) 
+        label_instance_1 = oracle.predict(instance_1)
         # print(f"label instance_1: {label_instance_1}")
 
         self.data_2 = torch.tensor(instance_2.data, device=self.device)
@@ -70,8 +71,23 @@ class CorrectnessFullMetric(EvaluationMetric):
 
         
         # print(instance_2.node_features.shape, edge_index_full_2.shape, instance_2.edge_weights.shape)
-        label_instance_2 = torch.argmax(oracle.model(torch.tensor(instance_2.node_features, dtype=torch.double, device=self.device), edge_index_full_2, edge_weights_full_2, self.batch).clone().detach(), dim=-1).squeeze(-1) 
+        # label_instance_2 = torch.argmax(oracle.model(torch.tensor(instance_2.node_features, dtype=torch.double, device=self.device), edge_index_full_2, edge_weights_full_2, self.batch).clone().detach(), dim=-1).squeeze(-1) 
+        label_instance_2 = oracle.predict(instance_2)
         # print(f"label instance_2: {label_instance_2}")
+
+        ged = self._ged.evaluate(instance_1, instance_2, oracle)
+
+        result = 1 if (label_instance_1 != label_instance_2) and (ged != 0) else 0
+        # print(f"validity: {result}")
+        
+        return result
+    
+    def evaluate(self, instance_1 , instance_2 , oracle : Oracle=None, explainer : Explainer=None, dataset = None):
+
+        self.device = oracle.device
+
+        label_instance_1 = oracle.predict(instance_1)
+        label_instance_2 = oracle.predict(instance_2)
 
         ged = self._ged.evaluate(instance_1, instance_2, oracle)
 

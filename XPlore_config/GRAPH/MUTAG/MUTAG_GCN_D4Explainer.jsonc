@@ -57,7 +57,7 @@
             "class": "src.explainer.D4Explainer.explainers.diff_explainer.DiffExplainer",
             "parameters": {
                 "task": "gc",
-                "dataset": "TCR",
+                "dataset": "MUTAG",
                 "epoch": 10
             }
         }

@@ -11,10 +11,11 @@ class TUDataset(Generator):
 
     def prepare_data(self):
         base_path = join(self.context.working_store_path,self.dataset_name)
+        pkl_path = join(base_path, f'{self.dataset_name}.pkl')
         self.context.logger.info("Dataset Data Path:\t" + base_path)
 
-        if not exists(base_path):
-            self.context.logger.info("Downloading " + self.dataset_name + "...")
+        if not exists(pkl_path):
+            # self.context.logger.info("Downloading " + self.dataset_name + "...")
             makedirs(base_path, exist_ok=True)
             if self.dataset_name == "DBLP_v1":
                 dataset = downloader(base_path, name=self.dataset_name, use_node_attr=False, use_edge_attr=True)
@@ -34,9 +35,8 @@ class TUDataset(Generator):
                 return base_path
             else:
                 dataset = downloader(base_path, name=self.dataset_name, use_node_attr=True, use_edge_attr=True)
-            if not exists(join(base_path, f'{self.dataset_name}.pkl')):
-                torch.save(dataset, join(base_path, f'{self.dataset_name}.pkl'))
-                self.context.logger.info(f"Saved dataset {self.dataset_name} in {join(base_path, f'{self.dataset_name}.pkl')}.")
+                torch.save(dataset, pkl_path)
+                self.context.logger.info(f"Saved dataset {self.dataset_name} in {pkl_path}.")
         return base_path        
        
     
@@ -52,9 +52,12 @@ class TUDataset(Generator):
             self.populate()
 
     def populate(self):
+        # input(self.dataset.__dict__)
         DATASETS_WITOHOUT_NODE_ATTR = {"COLLAB", "IMDB-MULTI", "IMDB-BINARY"}
+        CHEMICAL_DATASETS = {"MUTAG", "Mutagenicity", "AIDS", "BZR", "COX2", "BBBP", "DHFR", "PTC_MR", "PTC_FM", "PTC_FR", "PTC_MM", "NCI1", "NCI109"}
         data = torch.load(self.read_file)
-        features_map = {f'attribute_{i}': i for i in range(data[0].x.size(1))} if self.dataset_name not in DATASETS_WITOHOUT_NODE_ATTR else {f'attribute_{i}': i for i in range(data[0].num_nodes)}
+        # features_map = {f'attribute_{i}': i for i in range(data[0].x.size(1))} if self.dataset_name not in DATASETS_WITOHOUT_NODE_ATTR else {f'attribute_{i}': i for i in range(data[0].num_nodes)}
+        features_map = {f'attribute_{i}': i for i in range(data[0].x.size(1))} if self.dataset_name not in DATASETS_WITOHOUT_NODE_ATTR else {}
         self.dataset.node_features_map = features_map
 
         # TODO edge_map, graph_map
@@ -64,9 +67,13 @@ class TUDataset(Generator):
                 # print(f"instance.num_nodes.shape: {instance.num_nodes}")
                 # input()
                 # adj_matrix = torch.zeros((instance.num_nodes, instance.num_nodes), dtype=torch.float)
-                instance.x = torch.zeros((instance.num_nodes, 1))
+
+                # instance.x = torch.zeros((instance.num_nodes, 1))
+                # instance.x = torch.zeros((instance.num_nodes))
+                # instance.x = torch.tensor([])
+                instance.x = torch.empty((instance.num_nodes, 0))
             
-            adj_matrix = torch.zeros((instance.x.size(0), instance.x.size(0)), dtype=torch.float)
+            adj_matrix = torch.zeros((instance.num_nodes, instance.num_nodes), dtype=torch.float)
             adj_matrix[instance.edge_index[0], instance.edge_index[1]] = 1.0 
 
             if adj_matrix.shape[0] == 0:
@@ -82,10 +89,20 @@ class TUDataset(Generator):
             # if self.dataset_name == "TRIANGLES": print("TRIANGLES dataset detected, adjusting labels by -1")
             label = instance.y.item()-1 if self.dataset_name == "TRIANGLES" else instance.y.item()
 
+            if self.dataset_name in CHEMICAL_DATASETS:
+                atom_types = np.argmax(instance.x.numpy(), axis=1).astype(float)  # shape (N,)
+                n_atom_types = instance.x.shape[1]
+            else:
+                atom_types = None
+                n_atom_types = None
+            # input(atom_types)
+
             self.dataset.instances.append(GraphInstance(id=id, 
                                                         label=label, 
                                                         data=adj_matrix.numpy(),
                                                         graph_features=None,
                                                         node_features=instance.x.numpy(),
-                                                        edge_features=edge_features
+                                                        edge_features=edge_features,
+                                                        atom_types=atom_types,
+                                                        n_atom_types = n_atom_types
                                                         ))

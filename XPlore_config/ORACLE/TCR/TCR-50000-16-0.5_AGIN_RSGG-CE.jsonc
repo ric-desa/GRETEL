@@ -1,6 +1,6 @@
 {  
     "experiment" : {
-        "scope": "ORACLE/TCR/AGIN/XPlore",
+        "scope": "ORACLE/TCR/AGIN/RSGG-CE",
         "parameters" : {
             "lock_release_tout":120,
             "propagate":[

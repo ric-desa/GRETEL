@@ -40,7 +40,7 @@ class OracleTorch(TorchBase, Oracle):
 
 
     def _real_predict(self, data_instance):
-        return torch.argmax(self._real_predict_proba(data_instance), dim=-1)
+        return torch.argmax(self._real_predict_proba_full(data_instance), dim=-1)
     
     def _real_predict_gradients(self, data_instance):
         '''We added this since we needed gradients to compute how the perturbation on P influences Loss'''
@@ -57,7 +57,32 @@ class OracleTorch(TorchBase, Oracle):
         
         batch = torch.zeros(node_features.size(0), dtype=torch.long, device=self.device)
         return self.model(node_features,edge_index,edge_weights, batch).cpu().squeeze()
-        return self.model(node_features,edge_index,edge_weights, None).cpu().squeeze()
+        # return self.model(node_features,edge_index,edge_weights, None).cpu().squeeze()
+
+    def _real_predict_proba_full(self, data_inst):
+        # data_inst_geom = TorchGeometricDataset.to_geometric(data_inst)
+        # node_features = data_inst_geom.x.to(self.device)
+        # edge_index = data_inst_geom.edge_index.to(self.device)
+        # edge_weights = data_inst_geom.edge_attr.to(self.device)
+        
+        # batch = torch.zeros(node_features.size(0), dtype=torch.long, device=self.device)
+        # norm_pred = self.model(node_features,edge_index,edge_weights, batch).cpu().squeeze()
+        # print(f"oracle normal prediction: {norm_pred}")
+
+        data = torch.tensor(data_inst.data, dtype=torch.double, device=self.device)
+        batch = torch.zeros(data_inst.node_features.shape[0], dtype=torch.long, device=self.device)
+        edge_indices = torch.where(data != 0) # (int tensor)
+        edge_weights = data.detach().clone()[edge_indices[0], edge_indices[1]]        
+        adj_full = torch.ones_like(data)
+        edge_weights_full = torch.zeros_like(data) 
+        edge_weights_full[edge_indices] = edge_weights # weights having also 0s for missing edges
+        edge_weights_full = edge_weights_full.flatten()
+        edge_index_full = adj_full.nonzero(as_tuple=False).T
+
+        full_pred = self.model(torch.tensor(data_inst.node_features, dtype=torch.float64, device=self.device),edge_index_full,edge_weights_full,batch).cpu().squeeze()
+        # print(f"oracle full prediction:{full_pred}")
+        # input("oracle full prediciton")
+        return full_pred
     
     # @torch.no_grad() # We need gradients even at inference
     def _real_predict_proba_gradients(self, data_inst):

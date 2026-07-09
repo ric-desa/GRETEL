@@ -32,7 +32,7 @@ class GIN(nn.Module):
         # convolution operations
         edge_index = edge_index.long()
         # Convert 1D edge_weights to 2D edge_attr
-        edge_attr = edge_weights.unsqueeze(-1)  # shape [num_edges, 1]
+        edge_attr = edge_weights.unsqueeze(-1) # shape [num_edges, 1]
 
         for conv_layer in self.graph_convs[:-1]:
             # print(f"node_features.shape: {node_features.shape}")

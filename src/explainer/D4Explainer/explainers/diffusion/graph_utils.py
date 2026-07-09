@@ -154,8 +154,11 @@ def tensor2graph(graph_batch, score, mask_adj, threshold=0.5):
     row = batch + edge_indices[1]
     col = batch + edge_indices[2]
     edge_index = torch.stack([row, col], dim=0)
+    edge_weight = pred_adj[edge_indices[0], edge_indices[1], edge_indices[2]].float()
+    # edge_weight = torch.sigmoid(score_tensor)[edge_indices[0], edge_indices[1], edge_indices[2]] # Could lead to better CFs
     graph_batch_sub = graph_batch.clone()
     graph_batch_sub.edge_index = edge_index
+    graph_batch_sub.edge_attr = edge_weight
 
     return graph_batch_sub
 

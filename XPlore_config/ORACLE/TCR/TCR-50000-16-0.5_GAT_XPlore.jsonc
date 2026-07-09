@@ -30,7 +30,7 @@
                 "epochs": 100,
                 "batch_size": 512,
                 "early_stopping_threshold":1e-4,
-                "device": "cpu", // gpu is used if availbale
+                "device": "cpu", // gpu is used if available
                 "optimizer": {
                     "class": "torch.optim.RMSprop",
                     "parameters": {
@@ -54,13 +54,14 @@
     "explainers": [{"class": "src.explainer.XPlore.XPlore",
     "parameters": {
         "alpha": 1e0, 
-        "K": 500, 
-        "beta": 10, 
+        "K": 1000, 
+        "beta": 0.5, 
         "extended": true, 
         "gamma_edge": 0,
         "update_node_feat": false,
         "change_node_feat": false, 
         "gamma_node_feat": 0,
+        "decay_alpha": true,
         "debugging": false,
         "visualize": true}}],
     "compose_mes" : "config/snippets/metrics_fully_connected.json",

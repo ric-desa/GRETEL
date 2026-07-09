@@ -163,3 +163,4 @@ class GATConvMasked(GATConv):
             edge_weight=self.edge_weight,
             deg_src=self.deg_src
         )
+
