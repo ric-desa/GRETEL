@@ -16,9 +16,9 @@ Be sure to have installed all requirements and the correct version of the librar
 
 <div align="center">
 
-[![Paper](https://img.shields.io/badge/Paper-arXiv%3A2603.04209-b31b1b?style=flat-square&logo=arxiv)](https://arxiv.org/abs/2603.04209)
+<!-- [![Paper](https://img.shields.io/badge/Paper-arXiv%3A2603.04209-b31b1b?style=flat-square&logo=arxiv)](https://arxiv.org/abs/2603.04209)
 [![Framework](https://img.shields.io/badge/Built%20on-GRETEL-orange?style=flat-square)](https://github.com/aiim-research/GRETEL)
-[![Python](https://img.shields.io/badge/Python-3.8%2B-green?style=flat-square&logo=python)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-3.8%2B-green?style=flat-square&logo=python)](https://www.python.org/) -->
 <!-- [![OpenReview](https://img.shields.io/badge/OpenReview-ICLR%202026-blue?style=flat-square)](https://openreview.net/forum?id=L4KJT9QpqE) -->
 
 <img src="imgs\Interpretability_t-sne.jpg" alt="Photo" width="100%" />
@@ -153,7 +153,7 @@ This design is transparent by construction: there is no learned surrogate, no ge
 
 ---
 
-## Citing
+<!-- ## Citing
 
 If you use XPlore in your research, please cite:
 
@@ -169,13 +169,13 @@ If you use XPlore in your research, please cite:
 }
 ```
 
----
+--- -->
 
-## Built On
+<!-- ## Built On
 
 XPlore is implemented within the [**GRETEL**](https://github.com/aiim-research/GRETEL) framework — a unified environment for developing and evaluating counterfactual explanation methods for graph classifiers.
 
----
+--- -->
 
 <!-- ## License
 
